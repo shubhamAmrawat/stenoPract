@@ -5,7 +5,7 @@ import { Empty, ErrorState, Modal, Spinner } from '../components/ui'
 import { api, errorMessage } from '../lib/api'
 import { dictationStatus, type AdminDictation, type AdminSet, type ImportResponse } from './types'
 
-const CONSOLE_SNIPPET = String.raw`(() => { const m = new Map(); document.querySelectorAll('a[href*="watch?v="]').forEach((a) => { const id = (a.href.match(/[?&]v=([\w-]{11})/) || [])[1]; const t = (a.title || a.getAttribute('aria-label') || a.textContent || '').replace(/\s+/g, ' ').trim(); if (id && /exercise|wpm/i.test(t) && !m.has(id)) m.set(id, t + '\t' + a.href); }); copy([...m.values()].join('\n')); console.log(m.size + ' videos copied' + (m.size ? '' : ' - are you on the YouTube playlist tab? Scroll down first, then run again')); })()`
+const CONSOLE_SNIPPET = String.raw`(() => { const m = new Map(); document.querySelectorAll('a[href*="watch?v="]').forEach((a) => { const id = (a.href.match(/[?&]v=([\w-]{11})/) || [])[1]; const t = (a.title || a.getAttribute('aria-label') || a.textContent || '').replace(/\s+/g, ' ').trim(); if (id && /exercise|transcri|dictation|wpm/i.test(t) && !m.has(id)) m.set(id, t + '\t' + a.href); }); copy([...m.values()].join('\n')); console.log(m.size + ' videos copied' + (m.size ? '' : ' - are you on the YouTube playlist tab? Scroll down first, then run again')); })()`
 
 function useAdminInvalidate() {
   const qc = useQueryClient()
@@ -90,7 +90,7 @@ function SetPanel({ set, onOpen }: { set: AdminSet; onOpen: (m: 'edit' | 'links'
           <button className="btn btn-ghost btn-sm" onClick={() => onOpen('edit')}>Edit title</button>
           <button className="btn btn-primary btn-sm" onClick={() => onOpen('links')}>Paste video links</button>
           <button className="btn btn-ghost btn-sm" onClick={() => onOpen('json')}>Import JSON</button>
-          <button className="btn btn-ghost btn-sm" onClick={() => onOpen('playlist')}>Import playlist (API key)</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => onOpen('playlist')}>Import playlist</button>
         </div>
       </div>
 
@@ -110,13 +110,18 @@ function SetPanel({ set, onOpen }: { set: AdminSet; onOpen: (m: 'edit' | 'links'
         </div>
       )}
       {togglePublished.error && <div className="alert alert-error">{errorMessage(togglePublished.error)}</div>}
+      {items.some((d) => d.activeTextVersion == null) && (
+        <div className="alert alert-warn">
+          {(() => { const n = items.filter((d) => d.activeTextVersion == null).length; return n === 1 ? '1 exercise is' : `${n} exercises are` })()} waiting for a transcript. Students cannot see an exercise until its transcript is verified: use “Import JSON”, or open the exercise and paste the text.
+        </div>
+      )}
 
       {dictQ.isPending ? (
         <Spinner />
       ) : dictQ.error ? (
         <ErrorState error={dictQ.error} onRetry={() => void dictQ.refetch()} />
       ) : items.length === 0 ? (
-        <Empty title="No exercises in this set">Use “Import JSON”, “Paste video links” or run the content loader script.</Empty>
+        <Empty title="No exercises in this set yet">Use “Import playlist” or “Paste video links” to add the videos, then “Import JSON” (or open an exercise) to add transcripts.</Empty>
       ) : (
         <div className="table-wrap">
           <table className="table">
@@ -189,11 +194,13 @@ function NewSetModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
   const [playlist, setPlaylist] = useState('')
+  // The short name becomes part of the web address, so whatever is typed ("KC Volume 23") is tidied into "kc-volume-23".
+  const finalSlug = slugify(slug) || slugify(title)
   const create = useMutation({
     mutationFn: () =>
       api<{ set: AdminSet }>('/admin/sets', {
         method: 'POST',
-        body: { title: title.trim(), slug: slug.trim() || slugify(title), youtubePlaylistId: playlist.match(/list=([\w-]+)/)?.[1] ?? (playlist.trim() || undefined), published: true },
+        body: { title: title.trim(), slug: finalSlug || `set-${Date.now().toString(36)}`, youtubePlaylistId: playlist.match(/list=([\w-]+)/)?.[1] ?? (playlist.trim() || undefined), published: true },
       }),
     onSuccess: (r) => { invalidate(); onCreated(r.set.id) },
   })
@@ -206,8 +213,9 @@ function NewSetModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
           <input id="set-title" className="input" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Kailash Chandra Vol 24" />
         </div>
         <div className="field">
-          <label className="label" htmlFor="set-slug">Short name (optional)</label>
-          <input id="set-slug" className="input" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={slugify(title) || 'kailash-chandra-vol-24'} />
+          <label className="label" htmlFor="set-slug">Short name for the web address (optional)</label>
+          <input id="set-slug" className="input" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={slugify(title) || 'kailash-chandra-vol-24'} aria-describedby="set-slug-hint" />
+          <p id="set-slug-hint" className="muted small">Students will see it as /practice/{finalSlug || '…'}. Any name works; it is tidied into letters, numbers and dashes.</p>
         </div>
         <div className="field">
           <label className="label" htmlFor="set-pl">YouTube playlist link (optional)</label>
@@ -281,27 +289,97 @@ function LinksModal({ set, onClose }: { set: AdminSet; onClose: () => void }) {
   )
 }
 
+interface PlaylistResult {
+  found: number
+  created: number
+  updated: number
+  usedDefault: number
+  exercises: number[]
+  skipped: { title: string; reason: string }[]
+}
+
+function exerciseRange(nums: number[]) {
+  if (nums.length === 0) return ''
+  return nums.length === 1 ? `${nums[0]}` : `${nums[0]}\u2013${nums[nums.length - 1]}`
+}
+
 function PlaylistModal({ set, onClose }: { set: AdminSet; onClose: () => void }) {
   const invalidate = useAdminInvalidate()
   const [playlist, setPlaylist] = useState(set.youtubePlaylistId ?? '')
+  const [wpm, setWpm] = useState('')
+  const wpmNum = wpm.trim() === '' ? undefined : Number(wpm)
+  const wpmBad = wpmNum !== undefined && (!Number.isInteger(wpmNum) || wpmNum < 40 || wpmNum > 200)
   const run = useMutation({
-    mutationFn: () => api<{ found: number; created: number; updated: number; skipped: { title: string; reason: string }[] }>(`/admin/sets/${set.id}/import-playlist`, { method: 'POST', body: { playlist: playlist.trim() || undefined } }),
+    mutationFn: () =>
+      api<PlaylistResult>(`/admin/sets/${set.id}/import-playlist`, {
+        method: 'POST',
+        body: { playlist: playlist.trim() || undefined, defaultWpm: wpmNum },
+      }),
     onSuccess: invalidate,
   })
+  const r = run.data
+  const imported = r ? r.created + r.updated : 0
+  const needSpeed = r?.skipped.some((s) => s.reason.includes('no speed')) ?? false
   return (
     <Modal title="Import from a YouTube playlist" onClose={onClose}>
       <div className="stack">
-        <p className="small muted">Needs <code>YOUTUBE_API_KEY</code> in <code>server/.env</code>. If you do not have one, use “Paste video links” instead.</p>
-        <input className="input" value={playlist} onChange={(e) => setPlaylist(e.target.value)} placeholder="Playlist link or id" aria-label="Playlist" />
+        <p className="small muted">
+          Each video becomes an exercise, matched by the number in its title (“Exercise 507”, “Transcription No. 485”). Safe to run again: nothing is duplicated.
+          Needs <code>YOUTUBE_API_KEY</code> on the server; without one, use “Paste video links”.
+        </p>
+        <div>
+          <label className="label" htmlFor="pl-link">Playlist link or id</label>
+          <input id="pl-link" className="input" value={playlist} onChange={(e) => setPlaylist(e.target.value)} placeholder="https://www.youtube.com/playlist?list=…" />
+        </div>
+        <div>
+          <label className="label" htmlFor="pl-wpm">Speed for videos whose title has no speed (optional)</label>
+          <input
+            id="pl-wpm"
+            className="input"
+            inputMode="numeric"
+            style={{ maxWidth: 140 }}
+            value={wpm}
+            onChange={(e) => setWpm(e.target.value.replace(/\D/g, '').slice(0, 3))}
+            placeholder="e.g. 100"
+            aria-invalid={wpmBad}
+            aria-describedby="pl-wpm-hint"
+          />
+          <p id="pl-wpm-hint" className={wpmBad ? 'small' : 'small muted'} style={{ margin: '4px 0 0', color: wpmBad ? 'var(--full-ink)' : undefined }}>
+            {wpmBad ? 'Enter a speed between 40 and 200 words per minute.' : 'Titles like “100 WPM” are read automatically. This is only used when a title does not say.'}
+          </p>
+        </div>
         {run.error && <div className="alert alert-error">{errorMessage(run.error)}</div>}
-        {run.data && (
-          <div className="alert alert-info">
-            Found {run.data.found} videos: {run.data.created} new exercises, {run.data.updated} updated, {run.data.skipped.length} skipped. Publish them from the table (they need a transcript first).
+        {r && (
+          <div className="stack">
+            {imported > 0 ? (
+              <div className="alert alert-info">
+                <b>{imported} exercise{imported === 1 ? '' : 's'} ready in the table</b> ({exerciseRange(r.exercises)}): {r.created} new, {r.updated} updated
+                {r.usedDefault > 0 ? `, ${r.usedDefault} using the speed you typed` : ''}.
+                <div className="small" style={{ marginTop: 4 }}>
+                  Next: each exercise needs a verified transcript before students can see it. Use “Import JSON” for many at once, or open an exercise and paste its text.
+                </div>
+              </div>
+            ) : (
+              r.skipped.length === 0 && <div className="alert alert-warn">No videos were found in that playlist. Check the link, and that the playlist is public or unlisted.</div>
+            )}
+            {r.skipped.length > 0 && (
+              <div className="alert alert-error">
+                <b>{r.skipped.length} of {r.found} video{r.found === 1 ? '' : 's'} skipped</b>
+                {needSpeed && <span> — type the speed in the box above and press “Import again”.</span>}
+                <div className="small" style={{ marginTop: 6, maxHeight: 180, overflowY: 'auto', display: 'grid', gap: 4 }}>
+                  {r.skipped.map((s, i) => (
+                    <div key={i}>“{s.title.slice(0, 80)}” — {s.reason}</div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
         <div className="row" style={{ justifyContent: 'flex-end' }}>
-          <button className="btn btn-ghost" onClick={onClose}>Close</button>
-          <button className="btn btn-primary" disabled={run.isPending} onClick={() => run.mutate()}>{run.isPending ? 'Importing…' : 'Import'}</button>
+          <button className="btn btn-ghost" onClick={onClose}>{imported > 0 ? 'Done' : 'Close'}</button>
+          <button className="btn btn-primary" disabled={run.isPending || wpmBad} onClick={() => run.mutate()}>
+            {run.isPending ? 'Importing…' : r ? 'Import again' : 'Import'}
+          </button>
         </div>
       </div>
     </Modal>

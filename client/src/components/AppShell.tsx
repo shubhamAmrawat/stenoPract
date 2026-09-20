@@ -47,7 +47,7 @@ export function AppShell() {
         <div className="container topbar-inner">
           <Link to="/" className="brand">
             <Logo />
-            <span>Steno Practice</span>
+            <span>StenoSeekho</span>
           </Link>
           <nav className="nav" aria-label="Main">
             <NavLink to="/" end>Home</NavLink>

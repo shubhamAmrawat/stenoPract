@@ -154,8 +154,10 @@ export function parseVideoLinks(text: string): ParsedLinks {
     let exerciseNo: number | undefined;
     let baseWpm: number | undefined;
     const fromTitle = parseVideoTitle(rest);
-    if (fromTitle) ({ exerciseNo, baseWpm } = fromTitle);
-    else {
+    if (fromTitle?.baseWpm) {
+      exerciseNo = fromTitle.exerciseNo;
+      baseWpm = fromTitle.baseWpm;
+    } else {
       const m = rest.match(/^(?:ex(?:ercise)?\.?\s*(?:no\.?)?\s*)?(\d{1,5})[\s,|:-]+(\d{2,3})\s*(?:wpm)?$/i);
       if (m) {
         exerciseNo = Number(m[1]);
