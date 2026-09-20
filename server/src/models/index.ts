@@ -14,3 +14,4 @@ export { AlternateForm } from './AlternateForm.js';
 export { Abbreviation } from './Abbreviation.js';
 export { Resource } from './Resource.js';
 export { Invite } from './Invite.js';
+export { Setting } from './Setting.js';

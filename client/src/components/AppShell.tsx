@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { useAuth } from '../auth/AuthContext'
+import { SignOutDialog } from './SignOutDialog'
 import { setStudentView } from '../auth/studentView'
 import '../student.css'
 
@@ -16,9 +17,10 @@ export function Logo() {
 }
 
 export function AppShell() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const [confirmOut, setConfirmOut] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -59,12 +61,13 @@ export function AppShell() {
                   <div className="muted small">{user.email}</div>
                 </div>
                 <button className="menu-item" onClick={() => { setOpen(false); navigate('/settings') }}>Exam settings</button>
-                <button className="menu-item" onClick={() => { setStudentView(false); void logout().then(() => navigate('/login')) }}>Sign out</button>
+                <button className="menu-item" onClick={() => { setOpen(false); setConfirmOut(true) }}>Sign out</button>
               </div>
             )}
           </div>
         </div>
       </header>
+      {confirmOut && <SignOutDialog onClose={() => setConfirmOut(false)} />}
       <main className="page">
         <div className="container">
           <Outlet />

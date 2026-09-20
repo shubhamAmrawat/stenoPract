@@ -9,7 +9,7 @@ import type { User } from '../lib/types'
 import './login.css'
 
 const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? ''
-const SHOW_DEV_LOGIN = import.meta.env.DEV
+const IS_DEV = import.meta.env.DEV
 
 const GoogleMark = () => (
   <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
@@ -22,29 +22,71 @@ const GoogleMark = () => (
 
 const steps = ['Listen to the dictation and write it in your notebook', 'Transcribe it on screen against the clock', 'See every mistake, your weak words and your progress']
 
+type Mode = 'signin' | 'signup'
+
+function PasswordField({ id, label, value, onChange, autoComplete, hint, invalid }: { id: string; label: string; value: string; onChange: (v: string) => void; autoComplete: string; hint?: string; invalid?: boolean }) {
+  const [shown, setShown] = useState(false)
+  return (
+    <div className="field">
+      <label className="label" htmlFor={id}>{label}</label>
+      <div className="pw-wrap">
+        <input id={id} className="input" type={shown ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)} autoComplete={autoComplete} aria-invalid={invalid || undefined} required maxLength={128} />
+        <button type="button" className="pw-toggle" onClick={() => setShown((v) => !v)} aria-label={shown ? 'Hide password' : 'Show password'} aria-pressed={shown}>{shown ? 'Hide' : 'Show'}</button>
+      </div>
+      {hint && <span className="muted small">{hint}</span>}
+    </div>
+  )
+}
+
 export function LoginPage() {
   const { user, setUser } = useAuth()
   const location = useLocation()
   const from = (location.state as { from?: string } | null)?.from ?? '/'
+  const [mode, setMode] = useState<Mode>('signin')
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [googleError, setGoogleError] = useState<string | null>(null)
 
   const google = useMutation({
     mutationFn: (credential: string) => api<{ user: User }>('/auth/google', { method: 'POST', body: { credential } }),
     onSuccess: (r) => setUser(r.user),
   })
-  const dev = useMutation({
-    mutationFn: (e: string) => api<{ user: User }>('/auth/dev-login', { method: 'POST', body: { email: e } }),
+  const signin = useMutation({
+    mutationFn: () => api<{ user: User }>('/auth/login', { method: 'POST', body: { email: email.trim(), password } }),
+    onSuccess: (r) => setUser(r.user),
+  })
+  const signup = useMutation({
+    mutationFn: () => api<{ user: User }>('/auth/signup', { method: 'POST', body: { name: name.trim(), email: email.trim(), password } }),
     onSuccess: (r) => setUser(r.user),
   })
 
   if (user) return <Navigate to={from} replace />
 
-  const submitDev = (e: FormEvent) => {
-    e.preventDefault()
-    dev.mutate(email.trim())
+  const isSignup = mode === 'signup'
+  const emailMutation = isSignup ? signup : signin
+  const mismatch = isSignup && confirm !== '' && confirm !== password
+  const tooShort = isSignup && password !== '' && password.length < 8
+  const busy = emailMutation.isPending || google.isPending
+  const canSubmit = !busy && email.trim() !== '' && password !== '' && (!isSignup || (name.trim() !== '' && confirm !== '' && !mismatch && !tooShort))
+
+  const switchMode = (next: Mode) => {
+    setMode(next)
+    signin.reset()
+    signup.reset()
+    google.reset()
+    setGoogleError(null)
+    setPassword('')
+    setConfirm('')
   }
-  const error = google.error ?? dev.error
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    if (!canSubmit) return
+    setGoogleError(null)
+    emailMutation.mutate()
+  }
+  const error = google.error ?? emailMutation.error
   const notInvited = error instanceof ApiError && error.code === 'NOT_INVITED'
 
   return (
@@ -79,50 +121,64 @@ export function LoginPage() {
         <div className="auth-card">
           <div className="auth-mobile-brand"><Logo /><span>Steno Practice</span></div>
           <div>
-            <h2>Welcome back</h2>
-            <p className="auth-lead">Sign in with your Google account to start practising.</p>
+            <h2>{isSignup ? 'Create your account' : 'Welcome back'}</h2>
+            <p className="auth-lead">{isSignup ? 'It takes a minute. Then you can start practising.' : 'Sign in to start practising.'}</p>
           </div>
 
           <div className="auth-google">
             {GOOGLE_CLIENT_ID ? (
               <GoogleButton clientId={GOOGLE_CLIENT_ID} onCredential={(c) => google.mutate(c)} onError={setGoogleError} />
-            ) : SHOW_DEV_LOGIN ? (
+            ) : IS_DEV ? (
               <div className="auth-google-off"><GoogleMark /> Google sign-in is not set up yet</div>
             ) : (
               <div className="alert alert-warn">Google sign-in is not configured (missing VITE_GOOGLE_CLIENT_ID).</div>
             )}
           </div>
 
+          <div className="auth-divider">or use your email</div>
+
+          <form className="auth-form" onSubmit={submit} noValidate>
+            {isSignup && (
+              <div className="field">
+                <label className="label" htmlFor="auth-name">Your name</label>
+                <input id="auth-name" className="input" type="text" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" maxLength={80} required />
+              </div>
+            )}
+            <div className="field">
+              <label className="label" htmlFor="auth-email">Email</label>
+              <input id="auth-email" className="input" type="email" inputMode="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" spellCheck={false} required />
+            </div>
+            <PasswordField id="auth-password" label="Password" value={password} onChange={setPassword} autoComplete={isSignup ? 'new-password' : 'current-password'} hint={isSignup ? 'At least 8 characters. Longer is better.' : undefined} invalid={tooShort} />
+            {tooShort && <div className="field-error small" role="alert">Use at least 8 characters.</div>}
+            {isSignup && <PasswordField id="auth-confirm" label="Confirm password" value={confirm} onChange={setConfirm} autoComplete="new-password" invalid={mismatch} />}
+            {mismatch && <div className="field-error small" role="alert">The two passwords do not match.</div>}
+
+            <button className="btn btn-primary" disabled={!canSubmit}>
+              {emailMutation.isPending ? (isSignup ? 'Creating account…' : 'Signing in…') : isSignup ? 'Create account' : 'Sign in'}
+            </button>
+          </form>
+
           {notInvited ? (
             <div className="alert alert-warn stack" style={{ gap: 6 }} role="alert">
               <b>Not invited yet</b>
               <span>{errorMessage(error)}</span>
-              <span className="small">To use a different account, choose it in the Google button above.</span>
             </div>
           ) : (
             (error || googleError) && <div className="alert alert-error" role="alert">{error ? errorMessage(error) : googleError}</div>
           )}
           {google.isPending && <div className="muted small" style={{ textAlign: 'center' }}>Signing you in…</div>}
 
-          {SHOW_DEV_LOGIN && (
-            <>
-              {/* <div className="auth-divider">local development</div> */}
-              <form className="auth-dev" onSubmit={submitDev}>
-                <div className="field">
-                  <label className="label" htmlFor="dev-email">Email</label>
-                  <input id="dev-email" className="input" type="email" required placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-                </div>
-                <button className="btn btn-primary" disabled={dev.isPending || !email}>{dev.isPending ? 'Signing in…' : 'Sign in'}</button>
-              </form>
-            </>
-          )}
+          <p className="auth-switch">
+            {isSignup ? 'Already have an account?' : 'New here?'}{' '}
+            <button type="button" className="link-btn" onClick={() => switchMode(isSignup ? 'signin' : 'signup')}>{isSignup ? 'Sign in' : 'Create an account'}</button>
+          </p>
 
           <div className="auth-foot">
             <div className="row">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
-              <span>Invite-only. If Google says you have not been invited, ask the owner to add your email.</span>
+              <span>If you see “not invited”, ask the owner to add your email.</span>
             </div>
-            <div>We only see your name, email address and profile photo.</div>
+            <div>With Google we only see your name, email address and profile photo.</div>
           </div>
         </div>
       </main>

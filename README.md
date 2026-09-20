@@ -2,7 +2,7 @@
 
 A personal dictation-practice platform for SSC Stenographer aspirants. You listen to a dictation video, write it on paper, then transcribe it on screen against the clock. The server marks your typing against the stored master transcript and shows every mistake, your weak words and your progress over time.
 
-English only for now. Sign-in is by Google and the app is invite-only.
+English only for now. People sign in with Google or with an email and password, and anyone can create an account (an admin can switch this to invite-only).
 
 ## How a practice session works
 
@@ -32,11 +32,11 @@ English only for now. Sign-in is by Google and the app is invite-only.
 client/            React app (student side and the /admin console); vercel.json holds the Vercel rewrites
   src/pages/       student pages: login, home, book, dictation, write, analysis, history, dashboard
   src/admin/       admin console pages
-  src/auth/        Google sign-in button, auth context, route guards
+  src/auth/        Google sign-in button, auth context, route guards (the login and create-account form is in src/pages/LoginPage.tsx)
 server/
   src/modules/     routes by area: auth, catalog, attempts, analytics, library, reports, resources, admin
   src/evaluator/   the marking engine
-  src/services/    Google sign-in, YouTube and Drive imports, content import, access rules
+  src/services/    Google sign-in, password hashing, YouTube and Drive imports, content import, access rules
   src/models/      Mongoose models
   content/         content packs (JSON) loaded with `npm run content:load`
   postman/         Postman collection for the API
@@ -86,7 +86,7 @@ Server (`server/.env`):
 | `SESSION_SECRET` | in production | Long random string that signs the session cookie |
 | `GOOGLE_CLIENT_ID` | for Google sign-in | OAuth client ID, the same value as the client's `VITE_GOOGLE_CLIENT_ID` |
 | `ADMIN_EMAILS` | recommended | Comma-separated emails that become admins when they sign in |
-| `ALLOWED_EMAILS` | optional | Bootstrap list of emails that can always sign in. Day to day, invite people from Admin, Access instead |
+| `ALLOWED_EMAILS` | optional | Emails that can always sign in, even when sign-up is invite-only. Day to day, invite people from Admin, Access instead |
 | `CLIENT_ORIGIN` | in production | The site(s) that open the app in a browser. Several allowed, comma-separated. Default `http://localhost:5173` |
 | `TRUST_PROXY` | no | How many reverse proxies sit in front of the API. Default `1` in production, none locally. A number or `false` |
 | `COOKIE_SAMESITE` | no | `lax` (default). Use `none` (needs HTTPS) only if the client and API are on different sites |
@@ -106,25 +106,35 @@ Only `VITE_` variables reach the browser, so never put secrets here. They are ba
 
 Never commit `.env` files. They are ignored by git; only the `.env.example` files are tracked.
 
-## Google sign-in
+## Sign-in and accounts
 
-The login page uses Google Identity Services: One Tap plus the "Continue with Google" button. The server verifies Google's ID token and starts a session (httpOnly cookie `steno.sid`, 30 days, stored in MongoDB).
+Two ways in, both on the login page:
 
-To set it up, in the Google Cloud console open Google Auth Platform:
+- **Continue with Google**: Google Identity Services (One Tap plus the button). The server verifies Google's ID token and starts a session (httpOnly cookie `steno.sid`, 30 days, stored in MongoDB).
+- **Email and password**: "Create an account" asks for name, email, password and confirmation. Passwords are stored only as salted scrypt hashes.
+
+To set up Google, in the Google Cloud console open Google Auth Platform:
 
 1. Configure the app (name, support email, audience External, contact email).
 2. Clients, Create client, application type Web application.
 3. Under Authorized JavaScript origins add `http://localhost:5173` and `http://localhost`, plus your deployed origin later. Changes can take from a few minutes to a few hours to apply.
 4. Put the client ID in both `.env` files as described above.
 
-The app only requests name, email and profile photo.
+The app only requests name, email and profile photo from Google.
+
+### Rules to know
+
+- Passwords need 8 to 128 characters and cannot be a very common password or the email address itself.
+- After 8 wrong passwords in a row an account is locked for 15 minutes.
+- **Admins sign in with Google only.** Emails in `ADMIN_EMAILS` cannot register with a password, and a password sign-in never opens an admin session. Anyone can type someone else's email into "Create an account" because email addresses are not verified yet, so the admin role is only ever granted after Google has verified the address.
+- If a password account and a Google sign-in share an email, the Google sign-in takes the account over and the password is removed, so nobody can pre-register another person's email and keep access.
+- There is no "forgot password" yet (it needs an email service). Until then a person who forgot their password can use Google with the same email, or an admin can remove and restore their access.
 
 ## Access control
 
-- Production is always invite-only. Admin emails and `ALLOWED_EMAILS` may always sign in; everyone else must be invited under Admin, Access.
-- A person who is not invited sees a "Not invited yet" message naming the email they used.
-- Removing someone's access blocks their next sign-in and ends an open session on its next request.
-- When running locally with no invites and no allow-list, sign-in is open so a fresh database is easy to try.
+- Open sign-up is the default: anyone can create an account. In Admin, Access, an admin can switch to "Invited people only". Then admin emails, `ALLOWED_EMAILS` and invited emails can join, and everyone else sees "Not invited yet".
+- Admin, Access lists every person with how they sign in, when they joined and when they last signed in. From there an admin can sign someone out on all devices, remove access, or restore it.
+- Removing someone's access blocks their next sign-in (either method) and ends an open session on its next request. Signing someone out only ends their sessions; they can sign in again.
 
 ## Admin console
 
@@ -133,7 +143,7 @@ Open `/admin` while signed in as an admin. It has its own layout, and "Student p
 - **Content**: books and exercises, transcript versions (draft, then verified), video links, delete an exercise.
 - **Reports**: transcript errors and video problems that students report.
 - **Resources**: the files students see on the home page. Only links are stored. Import a whole shared Google Drive folder at once, or add links by hand.
-- **Access**: invite people and remove access.
+- **Access**: choose who can create an account, invite people, see everyone who joined, sign people out and remove access.
 - **Rules and exams**: exam settings and error limits, words accepted for each other, and abbreviations used by the marking engine.
 
 ## Scripts
@@ -179,7 +189,7 @@ With `app.example.com` and `api.example.com` on one domain you can call the API 
 
 ## Security notes
 
-Helmet headers, rate limits on the API and sign-in, an Origin check on state-changing requests, and a fresh session id on every sign-in.
+Helmet headers, rate limits on the API and sign-in, a per-account lock after repeated wrong passwords, salted scrypt password hashes, an Origin check on state-changing requests, and a fresh session id on every sign-in.
 
 ## Content and licence
 
@@ -187,6 +197,7 @@ Helmet headers, rate limits on the API and sign-in, an Origin check on state-cha
 
 ## Planned
 
+- Email verification and password reset (needs an email-sending service, best with your own domain).
 - A real typing-speed test (shown as "Coming soon" on the home page).
 - Upload files from the computer on the Resources page (storage not chosen yet).
 - Viewing PDFs inside the page instead of a new tab.

@@ -31,8 +31,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await api('/auth/logout', { method: 'POST' }).catch(() => undefined)
     // Tell Google this was a deliberate sign-out so it never signs the user straight back in.
     window.google?.accounts.id.disableAutoSelect()
-    qc.clear()
+    // Mark the user as signed out first so the route guards send them to /login straight away. (qc.clear() here would detach
+    // the 'me' query from its observer and leave the old user on screen.) Then forget everything cached for that user.
     qc.setQueryData(['me'], null)
+    qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' })
   }, [qc])
 
   const value = useMemo<AuthValue>(() => ({ user: data ?? null, loading: isPending, setUser, logout }), [data, isPending, setUser, logout])
