@@ -181,12 +181,24 @@ button { font: inherit; color: inherit; }
 .transcript-text { display: flex; flex-direction: column; gap: 12px; font-size: 0.98rem; line-height: 1.75; }
 .listen-grid > .stack > .player-frame.has-problem { flex: 1; aspect-ratio: auto; min-height: 260px; }
 .side-foot { border-radius: 0 0 var(--radius) var(--radius); border-top: 1px solid var(--border); padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 8px; background: var(--surface); }
-.attempts-strip { display: flex; align-items: center; gap: 14px 20px; flex-wrap: wrap; }
-.attempts-head { display: flex; align-items: center; gap: 10px; }
-.attempt-chips { list-style: none; margin: 0; padding: 0; display: flex; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
-.attempt-chips li { display: flex; align-items: baseline; gap: 8px; background: #f3f5fd; border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; }
-.attempts-strip > p { flex: 1; margin: 0; }
+.attempts { display: flex; flex-direction: column; gap: 16px; }
+.attempts-head { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
 .attempts-report { margin-left: auto; }
+/* Up to five results as equal tiles in one tidy row (they wrap into a neat grid on narrow screens). */
+.attempt-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
+.attempt-tile { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: #f6f8ff; border: 1px solid var(--border); border-radius: 14px; color: var(--ink); text-decoration: none !important; transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s; }
+.attempt-tile:hover { border-color: #b9c2ff; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.12); transform: translateY(-1px); }
+.attempt-tile:focus-visible { outline: 3px solid rgba(79, 70, 229, 0.3); outline-offset: 1px; }
+.attempt-pct { font-family: var(--font-head); font-weight: 800; font-size: 1.5rem; line-height: 1.1; color: var(--ink); }
+.attempt-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
+.attempt-view { font-size: 0.82rem; font-weight: 700; color: var(--primary); }
+@media (max-width: 520px) {
+  .attempt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .attempt-tile { padding: 10px 12px; }
+  .attempt-pct { font-size: 1.3rem; }
+  .attempt-foot { flex-wrap: wrap; }
+  .attempts-report { margin-left: 0; }
+}
 .player-frame { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden; background: #0b1230; box-shadow: var(--shadow-lg); }
 .player-frame > div, .player-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; }
 .player-fallback { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 20px 24px; text-align: center; color: #fff;
