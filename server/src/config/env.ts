@@ -17,6 +17,9 @@ function list(name: string): string[] {
     .filter(Boolean);
 }
 
+/** Cloudflare R2 speaks the S3 protocol. Give either the account id (the endpoint is built from it) or the full endpoint. */
+const r2Endpoint = process.env.R2_ENDPOINT || (process.env.R2_ACCOUNT_ID ? `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : '');
+
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 const isProd = nodeEnv === 'production';
 
@@ -54,4 +57,16 @@ export const env = {
   youtubeApiKey: process.env.YOUTUBE_API_KEY ?? '',
   /** Only needed for "Import from a Drive folder" on the admin Resources page. Falls back to the YouTube key if that key also has the Drive API enabled. */
   googleDriveApiKey: process.env.GOOGLE_DRIVE_API_KEY || process.env.YOUTUBE_API_KEY || '',
+
+  /** Profile photos. Uploads are switched on only when every one of these is set (see services/storage.ts). */
+  r2: {
+    endpoint: r2Endpoint,
+    bucket: process.env.R2_BUCKET_NAME ?? '',
+    accessKeyId: process.env.R2_ACCESS_KEY_ID ?? '',
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? '',
+    /** Where browsers read the bucket from: the r2.dev address or your own domain. No trailing slash. */
+    publicUrl: (process.env.R2_PUBLIC_URL ?? '').trim().replace(/\/+$/, ''),
+    /** Optional folder inside the bucket for everything this app stores, so it can share a bucket with another project (e.g. "steno"). */
+    keyPrefix: (process.env.R2_KEY_PREFIX ?? '').trim().replace(/^\/+|\/+$/g, ''),
+  },
 };

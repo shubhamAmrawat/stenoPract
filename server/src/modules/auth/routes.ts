@@ -8,6 +8,7 @@ import { parse } from '../../middleware/validate.js';
 import { ExamProfile, User } from '../../models/index.js';
 import { canSignIn } from '../../services/access.js';
 import { verifyGoogleIdToken } from '../../services/googleAuth.js';
+import { getStorage } from '../../services/storage.js';
 import { hashPassword, passwordProblem, verifyAgainstDummy, verifyPassword } from '../../services/password.js';
 
 export const SESSION_COOKIE = 'steno.sid';
@@ -17,8 +18,20 @@ interface UserLike {
   email: string;
   name: string;
   picture?: string | null;
+  avatarKey?: string | null;
+  googleId?: string | null;
+  phone?: string | null;
+  gender?: string | null;
+  bio?: string | null;
+  createdAt?: Date | null;
   role?: string | null;
   settings?: { examProfile?: string | null; category?: string | null } | null;
+}
+
+/** The picture to show: the student's own upload when there is one, otherwise their Google picture. */
+export function pictureOf(u: Pick<UserLike, 'picture' | 'avatarKey'>): string | null {
+  const storage = getStorage();
+  return u.avatarKey && storage ? storage.urlFor(u.avatarKey) : (u.picture ?? null);
 }
 
 export function publicUser(u: UserLike) {
@@ -26,12 +39,21 @@ export function publicUser(u: UserLike) {
     id: String(u._id),
     email: u.email,
     name: u.name,
-    picture: u.picture ?? null,
+    picture: pictureOf(u),
     role: u.role === 'admin' ? 'admin' : 'user',
     settings: {
       examProfile: u.settings?.examProfile ?? 'SSC_C',
       category: u.settings?.category === 'reserved' ? 'reserved' : 'general',
     },
+    phone: u.phone ?? null,
+    gender: u.gender ?? null,
+    bio: u.bio ?? null,
+    signInMethod: u.googleId ? 'google' : 'password',
+    memberSince: u.createdAt ? u.createdAt.toISOString() : null,
+    /** Whether the student has a photo of their own (so "Remove photo" makes sense). */
+    hasCustomPhoto: Boolean(u.avatarKey && getStorage()),
+    /** Whether this server can accept photo uploads at all. */
+    canUploadPhoto: getStorage() !== null,
   };
 }
 
@@ -70,7 +92,7 @@ async function signInWithGoogle(req: Request, identity: { sub: string; email: st
   }
   if (!user.active) throw new ApiError(403, 'This account has been disabled', 'ACCOUNT_DISABLED');
   user.email = identity.email;
-  user.name = identity.name;
+  if (!user.nameCustomised) user.name = identity.name;
   if (identity.picture) user.picture = identity.picture;
   user.lastLoginAt = new Date();
   // Only a Google sign-in (a verified email) can make someone an admin.

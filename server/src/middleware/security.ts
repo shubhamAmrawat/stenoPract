@@ -30,3 +30,4 @@ export const apiLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 600, standar
 export const authLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false, skip, ...json429 });
 export const submitLimiter = rateLimit({ windowMs: 60 * 60_000, limit: 40, standardHeaders: 'draft-8', legacyHeaders: false, skip, ...json429 });
 export const reportLimiter = rateLimit({ windowMs: 24 * 60 * 60_000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false, skip, ...json429 });
+export const avatarLimiter = rateLimit({ windowMs: 60 * 60_000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false, skip, ...json429 });

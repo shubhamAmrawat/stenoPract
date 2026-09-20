@@ -94,6 +94,7 @@ Server (`server/.env`):
 | `AUTH_DEV_LOGIN` | no | `true` enables an email-only dev login. Ignored in production |
 | `YOUTUBE_API_KEY` | for playlist import | YouTube Data API v3 key |
 | `GOOGLE_DRIVE_API_KEY` | for Drive folder import | Drive API key. Falls back to the YouTube key if that key also allows the Drive API |
+| `R2_ACCOUNT_ID` (or `R2_ENDPOINT`), `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_URL` | for photos and PDF uploads | Cloudflare R2 bucket. Photo and PDF upload are switched on only when all of them are set. Optional `R2_KEY_PREFIX` puts everything in one folder of the bucket. See "File storage" below |
 
 Client (`client/.env.local`, or the Vercel project's environment variables):
 
@@ -142,7 +143,7 @@ Open `/admin` while signed in as an admin. It has its own layout, and "Student p
 
 - **Content**: books and exercises, transcript versions (draft, then verified), video links, delete an exercise.
 - **Reports**: transcript errors and video problems that students report.
-- **Resources**: the files students see on the home page. Only links are stored. Import a whole shared Google Drive folder at once, or add links by hand.
+- **Resources**: the files students see on the home page, arranged in groups you create (KC Magazines, Syllabus, Announcements, and so on). Upload PDFs from your computer (files or whole folders, needs the R2 settings), import a shared Google Drive folder at once, or add links by hand.
 - **Access**: choose who can create an account, invite people, see everyone who joined, sign people out and remove access.
 - **Rules and exams**: exam settings and error limits, words accepted for each other, and abbreviations used by the marking engine.
 
@@ -165,7 +166,7 @@ The API runs on Render and the client on Vercel. The browser only ever talks to 
 ### 1. API on Render (Web Service)
 
 - Root directory `server`. Build command `npm install --include=dev && npm run build` (TypeScript is a dev dependency). Start command `npm start`. Health check path `/api/v1/health`.
-- Environment variables: `NODE_VERSION=24`, `NODE_ENV=production`, `DB_URL`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `ADMIN_EMAILS`, and `CLIENT_ORIGIN` set to your Vercel URL (for example `https://your-app.vercel.app`). Add `YOUTUBE_API_KEY` and `GOOGLE_DRIVE_API_KEY` if you use the imports. The server refuses to start in production without `SESSION_SECRET` and `DB_URL`.
+- Environment variables: `NODE_VERSION=24`, `NODE_ENV=production`, `DB_URL`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `ADMIN_EMAILS`, and `CLIENT_ORIGIN` set to your Vercel URL (for example `https://your-app.vercel.app`). Add `YOUTUBE_API_KEY` and `GOOGLE_DRIVE_API_KEY` if you use the imports, and the `R2_*` variables for photos and PDF uploads. The server refuses to start in production without `SESSION_SECRET` and `DB_URL`.
 - In Atlas, Network Access must allow Render. Render publishes IP ranges rather than one fixed address, so the simplest setting is `0.0.0.0/0`, protected by the database password.
 - Free instances sleep after 15 minutes without traffic, and the first request afterwards takes about a minute.
 
@@ -183,6 +184,35 @@ Add the Vercel URL to the OAuth client's Authorized JavaScript origins (and your
 
 Open `https://<your-vercel-url>/api/v1/health`; it should return `{"status":"ok", ...}`. Then sign in. Finally open the Render logs: each request line has an `ip` field, which should be your own public IP. If it shows a Vercel or Render address instead, every visitor shares one rate-limit bucket, so try `TRUST_PROXY=2` (or `1`) until it matches.
 
+### File storage (Cloudflare R2, optional)
+
+R2 holds two things: student profile photos, and PDFs an admin uploads on the Resources page. Without the settings below, the Profile page hides the photo button and Resources keeps working with links and Drive folders only.
+
+- **Profile photos** are cropped to a 512 px square WebP by the API (which also strips metadata such as GPS) and stored as `avatars/<user id>/<random>.webp`.
+- **Resource PDFs** go from the admin's browser straight to R2 through a short-lived signed address, so big files never pass through the API. They are stored as `resources/<group>/<random>/<file name>.pdf`, and the Resources page then adds them to the group.
+
+Setup:
+
+1. Create an R2 bucket (a separate one for this app is simplest) and turn on public access for it (the `r2.dev` address for testing, or a custom domain for real use). Everything in the bucket can be read by anyone who has a file's address. Uploaded PDF addresses contain a random part and are not listed anywhere, but treat them like a Drive "anyone with the link" share.
+2. Create an R2 API token with Object Read & Write, limited to that bucket.
+3. Add a CORS policy to the bucket (bucket Settings, CORS Policy, Add CORS policy, JSON). The browser needs it to upload PDFs and to save them under their own name. Use your real site addresses, with no trailing slash:
+
+   ```json
+   [
+     {
+       "AllowedOrigins": ["https://your-app.vercel.app", "http://localhost:5173"],
+       "AllowedMethods": ["GET", "PUT"],
+       "AllowedHeaders": ["Content-Type"],
+       "MaxAgeSeconds": 3600
+     }
+   ]
+   ```
+
+4. Set these on the API (`server/.env` locally, and in the Render environment): `R2_ACCOUNT_ID` (Cloudflare dashboard, R2 overview), `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_PUBLIC_URL` (the public address, no trailing slash). Instead of the account id you can set `R2_ENDPOINT` (`https://<account id>.r2.cloudflarestorage.com`). To share a bucket with another project, also set `R2_KEY_PREFIX=steno` (any name): every file then lives under that folder. Pick it once and keep it.
+5. The server needs these packages (`cd server && npm install @aws-sdk/client-s3 @aws-sdk/s3-request-presigner sharp`).
+
+Files an admin deletes on the Resources page are deleted from the bucket too. An upload that was started but never finished (the browser was closed halfway) can leave a stray file in the bucket; it is never shown to students, and you can delete it from the Cloudflare dashboard.
+
 ### Own domain later
 
 With `app.example.com` and `api.example.com` on one domain you can call the API directly: set `VITE_API_URL=https://api.example.com` on Vercel, list `https://app.example.com` in `CLIENT_ORIGIN`, and add the Google origin. Both are subdomains of one site, so the default `COOKIE_SAMESITE=lax` still works.
@@ -199,7 +229,6 @@ Helmet headers, rate limits on the API and sign-in, a per-account lock after rep
 
 - Email verification and password reset (needs an email-sending service, best with your own domain).
 - A real typing-speed test (shown as "Coming soon" on the home page).
-- Upload files from the computer on the Resources page (storage not chosen yet).
 - Viewing PDFs inside the page instead of a new tab.
 - Audio fallback for videos that cannot be embedded (owner disabled embedding). For now the exercise page shows a "Watch on YouTube" panel instead. Parked idea: generate dictation audio from the verified transcript with a text-to-speech voice.
   - Sarvam Bulbul v3 was trialled (en-IN, API key in `server/.env`, ₹3 per 1,000 characters, about ₹14 per exercise). Quality was good, but at pace 1.0 it speaks about 210 wpm, so words blur. Use pace around 0.7.

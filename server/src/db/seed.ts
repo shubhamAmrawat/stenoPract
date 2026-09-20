@@ -1,6 +1,6 @@
 import { DEFAULT_LEXICON_INPUT } from '../evaluator/index.js';
 import { logger } from '../config/logger.js';
-import { Abbreviation, AlternateForm, ExamProfile } from '../models/index.js';
+import { Abbreviation, AlternateForm, ExamProfile, ResourceGroup } from '../models/index.js';
 
 /**
  * Starting values only. Inserted if missing and NEVER overwritten afterwards,
@@ -17,8 +17,15 @@ const EXAM_PROFILES = [
   { code: 'COMMON', name: 'Common practice', wpm: 100, durationMin: 45, words: 1000, limits: { general: 5, reserved: 7 } },
 ];
 
+/** The two shelves the app started with. Only created on a database that has none, so a shelf an admin renames or deletes stays that way. */
+const DEFAULT_RESOURCE_GROUPS = [
+  { slug: 'kc-magazines', title: 'KC Magazines PDF', blurb: 'Kailash Chandra dictation books, volume by volume.', order: 1 },
+  { slug: 'ssc-previous-years', title: 'SSC Steno previous years skill test matter', blurb: 'Past skill-test dictation matter for offline practice.', order: 2 },
+];
+
 export async function seedReferenceData(): Promise<void> {
-  await Promise.all([ExamProfile.init(), AlternateForm.init(), Abbreviation.init()]);
+  await Promise.all([ExamProfile.init(), AlternateForm.init(), Abbreviation.init(), ResourceGroup.init()]);
+  if ((await ResourceGroup.estimatedDocumentCount()) === 0) await ResourceGroup.insertMany(DEFAULT_RESOURCE_GROUPS);
 
   await ExamProfile.bulkWrite(
     EXAM_PROFILES.map((p) => ({

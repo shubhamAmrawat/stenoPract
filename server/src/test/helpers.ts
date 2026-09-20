@@ -5,6 +5,7 @@ import { createApp } from '../app.js';
 import { ensureIndexes } from '../db/indexes.js';
 import { seedReferenceData } from '../db/seed.js';
 import { invalidateLexicon } from '../services/lexicon.js';
+import type { ObjectStorage } from '../services/storage.js';
 
 let mongod: MongoMemoryServer | undefined;
 
@@ -73,4 +74,18 @@ export async function createDictation(
     source: 'book',
   });
   return { set, dictation, text };
+}
+
+/** A storage that keeps files in memory, so no network and no Cloudflare account are needed. `browserUpload` plays the part of the browser sending a file to its presigned address. */
+export function fakeStorage() {
+  const files = new Map<string, { body: Buffer; type: string }>();
+  const storage: ObjectStorage = {
+    async put(key, body, type) { files.set(key, { body, type }); },
+    async remove(key) { files.delete(key); },
+    async presignPut(key, type, seconds) { return `https://upload.test/${key}?type=${encodeURIComponent(type)}&expires=${seconds}`; },
+    async head(key) { const f = files.get(key); return f ? { size: f.body.length } : null; },
+    urlFor: (key) => `https://files.test/${key}`,
+  };
+  const browserUpload = (key: string, body: Buffer | string = '%PDF-1.4 test') => { files.set(key, { body: Buffer.from(body), type: 'application/pdf' }); };
+  return { files, storage, browserUpload };
 }

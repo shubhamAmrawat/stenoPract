@@ -2,8 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { ErrorState, Spinner } from '../components/ui'
 import { api, errorMessage } from '../lib/api'
-import { RESOURCE_GROUPS } from '../lib/resources'
-import type { ResourceGroupKey, ResourceItem } from '../lib/types'
+import { formatBytes } from '../lib/format'
+import type { ResourceGroup, ResourceItem } from '../lib/types'
+import { UploadCard } from './UploadCard'
 
 interface DriveImportResult {
   created: ResourceItem[]
@@ -18,28 +19,132 @@ interface DraftRow { id: number; title: string; url: string }
 let draftId = 0
 const newRow = (): DraftRow => ({ id: ++draftId, title: '', url: '' })
 
-const GROUPS = Object.keys(RESOURCE_GROUPS) as ResourceGroupKey[]
+
+/** Everything that shows groups or files, on both the admin and the student side, has to look again after a change. */
+function useRefreshResources() {
+  const qc = useQueryClient()
+  return () => void Promise.all([
+    qc.invalidateQueries({ queryKey: ['admin', 'resources'] }),
+    qc.invalidateQueries({ queryKey: ['admin', 'resource-groups'] }),
+    qc.invalidateQueries({ queryKey: ['resources'] }),
+    qc.invalidateQueries({ queryKey: ['resource-groups'] }),
+  ])
+}
 
 export function ResourcesAdminPage() {
-  const [group, setGroup] = useState<ResourceGroupKey>('kc-magazines')
+  const groupsQ = useQuery({ queryKey: ['admin', 'resource-groups'], queryFn: () => api<{ items: ResourceGroup[] }>('/admin/resource-groups').then((r) => r.items) })
+  const [selected, setSelected] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const groups = groupsQ.data ?? []
+  const current = groups.find((g) => g.group === selected) ?? groups[0]
+
   return (
     <div className="stack-lg">
       <div>
         <h2>Resources</h2>
-        <p className="muted small">The files students see under Resources on the home page. We only store links, so put the PDFs on Google Drive first (share as “Anyone with the link”). Then import a whole folder at once, or paste single links.</p>
+        <p className="muted small">The files students see under Resources on the home page. Make a group for each kind of material (a magazine series, the syllabus, announcements), then upload PDFs from your computer, import a Google Drive folder, or paste links.</p>
       </div>
-      <div className="row">
-        {GROUPS.map((g) => <button key={g} className="chip" aria-pressed={g === group} onClick={() => setGroup(g)}>{RESOURCE_GROUPS[g].title}</button>)}
-      </div>
-      <GroupPanel key={group} group={group} />
+
+      {groupsQ.isPending ? <Spinner /> : groupsQ.error ? <ErrorState error={groupsQ.error} onRetry={() => void groupsQ.refetch()} /> : (
+        <>
+          <div className="row">
+            {groups.map((g) => (
+              <button key={g.group} className="chip" aria-pressed={!creating && g.group === current?.group} onClick={() => { setCreating(false); setSelected(g.group) }}>
+                {g.title}<span className="chip-count">{g.count ?? 0}</span>{!g.published && <span className="chip-count"> · hidden</span>}
+              </button>
+            ))}
+            <button className="chip chip-new" aria-pressed={creating} onClick={() => setCreating(true)}>+ New group</button>
+          </div>
+
+          {(creating || groups.length === 0) && <NewGroupForm first={groups.length === 0} onCancel={groups.length > 0 ? () => setCreating(false) : undefined} onCreated={(g) => { setCreating(false); setSelected(g.group) }} />}
+          {!creating && current && <GroupPanel key={current.group} group={current.group} meta={current} onGone={() => setSelected(null)} />}
+        </>
+      )}
     </div>
   )
 }
 
-function GroupPanel({ group }: { group: ResourceGroupKey }) {
-  const qc = useQueryClient()
+function NewGroupForm({ first, onCancel, onCreated }: { first: boolean; onCancel?: () => void; onCreated: (g: ResourceGroup) => void }) {
+  const refresh = useRefreshResources()
+  const [title, setTitle] = useState('')
+  const [blurb, setBlurb] = useState('')
+  const create = useMutation({
+    mutationFn: () => api<{ item: ResourceGroup }>('/admin/resource-groups', { method: 'POST', body: { title: title.trim(), blurb: blurb.trim() } }).then((r) => r.item),
+    onSuccess: (g) => { refresh(); onCreated(g) },
+  })
+  return (
+    <form className="card stack" onSubmit={(e) => { e.preventDefault(); if (title.trim()) create.mutate() }}>
+      <div>
+        <h3>{first ? 'Create your first group' : 'New group'}</h3>
+        <p className="muted small">A group is a shelf on the student Resources area, for example “Syllabus” or “Announcements”. Students see it once it has a name; you can hide it any time.</p>
+      </div>
+      <div className="field">
+        <label className="label" htmlFor="grp-title">Name</label>
+        <input id="grp-title" className="input" value={title} maxLength={80} placeholder="Syllabus" autoFocus onChange={(e) => setTitle(e.target.value)} />
+      </div>
+      <div className="field">
+        <label className="label" htmlFor="grp-blurb">Short description <span className="muted">(optional)</span></label>
+        <input id="grp-blurb" className="input" value={blurb} maxLength={200} placeholder="The official SSC Stenographer syllabus and exam pattern." onChange={(e) => setBlurb(e.target.value)} />
+      </div>
+      {create.error && <div className="alert alert-error">{errorMessage(create.error)}</div>}
+      <div className="row">
+        <button className="btn btn-primary" disabled={!title.trim() || create.isPending}>{create.isPending ? 'Creating…' : 'Create group'}</button>
+        {onCancel && <button type="button" className="btn btn-ghost" onClick={onCancel}>Cancel</button>}
+      </div>
+    </form>
+  )
+}
+
+/** Rename, describe, hide or delete the group. A group that still has files cannot be deleted. */
+function GroupSettings({ meta, onGone }: { meta: ResourceGroup; onGone: () => void }) {
+  const refresh = useRefreshResources()
+  const [title, setTitle] = useState(meta.title)
+  const [blurb, setBlurb] = useState(meta.blurb)
+  const [sure, setSure] = useState(false)
+  const save = useMutation({
+    mutationFn: (body: Partial<Pick<ResourceGroup, 'title' | 'blurb' | 'published'>>) => api(`/admin/resource-groups/${meta.id}`, { method: 'PATCH', body }),
+    onSuccess: refresh,
+  })
+  const del = useMutation({ mutationFn: () => api(`/admin/resource-groups/${meta.id}`, { method: 'DELETE' }), onSuccess: () => { refresh(); onGone() } })
+  const dirty = title.trim() !== meta.title || blurb.trim() !== meta.blurb
+  const hasFiles = (meta.count ?? 0) > 0
+  return (
+    <div className="card stack">
+      <div>
+        <h3>Group settings</h3>
+        <p className="muted small">Students open this group at /resources/{meta.group}. Its address stays the same if you rename it.</p>
+      </div>
+      <div className="entry-row">
+        <div className="field entry-title">
+          <label className="label" htmlFor="gs-title">Name</label>
+          <input id="gs-title" className="input" value={title} maxLength={80} onChange={(e) => setTitle(e.target.value)} />
+        </div>
+        <div className="field grow entry-link">
+          <label className="label" htmlFor="gs-blurb">Short description</label>
+          <input id="gs-blurb" className="input" value={blurb} maxLength={200} onChange={(e) => setBlurb(e.target.value)} />
+        </div>
+        <button className="btn btn-primary" disabled={!dirty || !title.trim() || save.isPending} onClick={() => save.mutate({ title: title.trim(), blurb: blurb.trim() })}>{save.isPending ? 'Saving…' : 'Save'}</button>
+      </div>
+      <div className="spread">
+        <label className="row small"><input type="checkbox" checked={meta.published} disabled={save.isPending} onChange={(e) => save.mutate({ published: e.target.checked })} /> Visible to students</label>
+        <div className="row">
+          {hasFiles && <span className="muted small">Delete its {meta.count} file{meta.count === 1 ? '' : 's'} first to remove the group.</span>}
+          {sure ? (
+            <>
+              <button className="btn btn-danger btn-sm" disabled={del.isPending} onClick={() => del.mutate()}>Confirm delete</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setSure(false)}>No</button>
+            </>
+          ) : <button className="btn btn-ghost btn-sm" disabled={hasFiles} onClick={() => setSure(true)}>Delete group</button>}
+        </div>
+      </div>
+      {(save.error || del.error) && <div className="alert alert-error">{errorMessage(save.error ?? del.error)}</div>}
+    </div>
+  )
+}
+
+function GroupPanel({ group, meta, onGone }: { group: string; meta: ResourceGroup; onGone: () => void }) {
   const q = useQuery({ queryKey: ['admin', 'resources', group], queryFn: () => api<{ items: ResourceItem[] }>(`/admin/resources?group=${group}`).then((r) => r.items) })
-  const refresh = () => void qc.invalidateQueries({ queryKey: ['admin', 'resources'] }).then(() => qc.invalidateQueries({ queryKey: ['resources'] })).then(() => qc.invalidateQueries({ queryKey: ['resource-groups'] }))
+  const refresh = useRefreshResources()
 
   const [rows, setRows] = useState<DraftRow[]>(() => [newRow()])
   const [showErrors, setShowErrors] = useState(false)
@@ -98,18 +203,7 @@ function GroupPanel({ group }: { group: ResourceGroupKey }) {
         )}
       </div>
 
-      <div className="card stack" aria-disabled="true">
-        <div className="spread">
-          <h3>Upload from your computer</h3>
-          <span className="badge badge-half">Coming soon</span>
-        </div>
-        <div className="dropzone" aria-hidden="true">
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" /><path d="M12 11v5M9.5 13.5 12 11l2.5 2.5" /></svg>
-          <div><b>Drag and drop a folder or PDFs here</b></div>
-          <button className="btn btn-ghost btn-sm" disabled tabIndex={-1}>Browse files</button>
-        </div>
-        <p className="muted small">Until file storage is set up, add files with a Drive folder or links.</p>
-      </div>
+      <UploadCard group={group} onDone={refresh} />
 
       <form className="card stack" onSubmit={submitRows} noValidate>
         <div>
@@ -152,7 +246,7 @@ function GroupPanel({ group }: { group: ResourceGroupKey }) {
 
       <div className="card stack">
         <div className="spread">
-          <h3>Files in this group</h3>
+          <h3>Files in {meta.title}</h3>
           {q.data && <span className="muted small">{q.data.length} file{q.data.length === 1 ? '' : 's'}</span>}
         </div>
         {q.isPending ? <Spinner /> : q.error ? <ErrorState error={q.error} /> : q.data.length === 0 ? <p className="muted small">Nothing added yet.</p> : (
@@ -170,6 +264,8 @@ function GroupPanel({ group }: { group: ResourceGroupKey }) {
         )}
         {(patch.error || del.error) && <div className="alert alert-error">{errorMessage(patch.error ?? del.error)}</div>}
       </div>
+
+      <GroupSettings key={`${meta.id}-${meta.title}-${meta.blurb}`} meta={meta} onGone={onGone} />
     </div>
   )
 }
@@ -178,17 +274,23 @@ function ResourceRow({ r, busy, onSave, onDelete }: { r: ResourceItem; busy: boo
   const [title, setTitle] = useState(r.title)
   const [url, setUrl] = useState(r.url)
   const [sure, setSure] = useState(false)
-  const dirty = title.trim() !== r.title || url.trim() !== r.url
+  const dirty = title.trim() !== r.title || (!r.uploaded && url.trim() !== r.url)
   return (
     <tr>
       <td><input className="input" style={{ minWidth: 150 }} value={title} onChange={(e) => setTitle(e.target.value)} aria-label={`Title of ${r.title}`} /></td>
-      <td><input className="input" style={{ minWidth: 220 }} value={url} onChange={(e) => setUrl(e.target.value)} aria-label={`Link of ${r.title}`} /></td>
+      <td>
+        {r.uploaded ? (
+          <span className="small">Uploaded PDF{r.size !== null ? ` · ${formatBytes(r.size)}` : ''} · <a href={r.url} target="_blank" rel="noopener noreferrer">Open</a></span>
+        ) : (
+          <input className="input" style={{ minWidth: 220 }} value={url} onChange={(e) => setUrl(e.target.value)} aria-label={`Link of ${r.title}`} />
+        )}
+      </td>
       <td><label className="row small"><input type="checkbox" checked={r.published} disabled={busy} onChange={(e) => onSave({ published: e.target.checked })} /> Visible</label></td>
       <td>
         <div className="row" style={{ flexWrap: 'nowrap' }}>
           {dirty ? (
             <>
-              <button className="btn btn-primary btn-sm" disabled={busy || !title.trim() || !url.trim()} onClick={() => onSave({ title: title.trim(), url: url.trim() })}>Save changes</button>
+              <button className="btn btn-primary btn-sm" disabled={busy || !title.trim() || (!r.uploaded && !url.trim())} onClick={() => onSave(r.uploaded ? { title: title.trim() } : { title: title.trim(), url: url.trim() })}>Save changes</button>
               <button className="btn btn-ghost btn-sm" onClick={() => { setTitle(r.title); setUrl(r.url) }}>Undo</button>
             </>
           ) : <span className="saved-tag small">✓ Saved</span>}

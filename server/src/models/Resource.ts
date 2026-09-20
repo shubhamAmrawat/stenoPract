@@ -1,14 +1,16 @@
 import { Schema, model, type InferSchemaType } from 'mongoose';
 
-export const RESOURCE_GROUPS = ['kc-magazines', 'ssc-previous-years'] as const;
-export type ResourceGroup = (typeof RESOURCE_GROUPS)[number];
-
-/** A downloadable file (usually a PDF) shown on the student "Resources" pages. We only store the link, never the file. */
+/** A downloadable file (usually a PDF) shown on the student "Resources" pages: either a link to somewhere else (Drive), or a PDF uploaded to our own storage. */
 const resourceSchema = new Schema(
   {
-    group: { type: String, enum: RESOURCE_GROUPS, required: true },
+    /** Slug of the ResourceGroup it sits in. */
+    group: { type: String, required: true, trim: true },
     title: { type: String, required: true, trim: true, maxlength: 160 },
-    url: { type: String, required: true, trim: true, maxlength: 1000 },
+    /** Where the file is. For an uploaded file this is only a fallback; the address is built from fileKey so a new public domain never breaks old files. */
+    url: { type: String, trim: true, maxlength: 1000, default: '' },
+    /** Set for files uploaded to our storage: their object key. Removing the resource removes the object. */
+    fileKey: { type: String },
+    fileSize: { type: Number },
     order: { type: Number, default: 0 },
     published: { type: Boolean, default: true },
   },

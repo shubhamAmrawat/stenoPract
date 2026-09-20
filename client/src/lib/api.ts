@@ -14,6 +14,7 @@ export class ApiError extends Error {
 
 interface Options {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  /** Sent as JSON, except a Blob (a photo), which goes as it is with its own type. */
   body?: unknown
   signal?: AbortSignal
 }
@@ -31,8 +32,8 @@ export async function api<T>(path: string, { method = 'GET', body, signal }: Opt
     res = await fetch(`${API_BASE}/api/v1${path}`, {
       method,
       credentials: 'include',
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: body === undefined ? undefined : { 'Content-Type': body instanceof Blob ? body.type : 'application/json' },
+      body: body === undefined ? undefined : body instanceof Blob ? body : JSON.stringify(body),
       signal,
     })
   } catch (err) {
@@ -43,7 +44,10 @@ export async function api<T>(path: string, { method = 'GET', body, signal }: Opt
   const data: unknown = await res.json().catch(() => null)
   if (!res.ok) {
     const e = (data as { error?: { code?: string; message?: string; details?: unknown } } | null)?.error
-    throw new ApiError(res.status, e?.code ?? 'ERROR', e?.message ?? `Request failed (${res.status})`, e?.details)
+    // A rejected form comes back as "Invalid request" plus one message per field. Show the first field message: it says what to fix.
+    const detail = Array.isArray(e?.details) ? (e.details as { message?: string }[]).find((d) => typeof d?.message === 'string')?.message : undefined
+    const message = e?.message === 'Invalid request' && detail ? detail : e?.message
+    throw new ApiError(res.status, e?.code ?? 'ERROR', message ?? `Request failed (${res.status})`, e?.details)
   }
   return data as T
 }

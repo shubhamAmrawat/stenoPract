@@ -13,5 +13,6 @@ export { ExamProfile } from './ExamProfile.js';
 export { AlternateForm } from './AlternateForm.js';
 export { Abbreviation } from './Abbreviation.js';
 export { Resource } from './Resource.js';
+export { ResourceGroup } from './ResourceGroup.js';
 export { Invite } from './Invite.js';
 export { Setting } from './Setting.js';

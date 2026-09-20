@@ -4,6 +4,7 @@ import { env } from '../../config/env.js';
 import { ApiError } from '../../middleware/errors.js';
 import { parse } from '../../middleware/validate.js';
 import { Invite, User } from '../../models/index.js';
+import { pictureOf } from '../auth/routes.js';
 import { isSignupOpen, setSignupOpen } from '../../services/settings.js';
 
 export const adminAccessRouter = Router();
@@ -46,7 +47,7 @@ adminAccessRouter.get('/access', async (_req, res) => {
   for (const u of users) {
     const allowed = !inviteOnly || invitedAt.has(u.email) || listed(u.email);
     byEmail.set(u.email, {
-      email: u.email, name: u.name, picture: u.picture ?? null, role: u.role === 'admin' ? 'admin' : 'user',
+      email: u.email, name: u.name, picture: pictureOf(u), role: u.role === 'admin' ? 'admin' : 'user',
       status: u.active && allowed ? 'active' : 'removed', locked: lockOf(u.email),
       method: u.googleId ? 'google' : u.passwordHash ? 'password' : null,
       invitedAt: invitedAt.get(u.email) ?? null, joinedAt: u.createdAt?.toISOString() ?? null, lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
