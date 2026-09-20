@@ -6,6 +6,8 @@ import { ApiError } from './errors.js';
 declare module 'express-session' {
   interface SessionData {
     userId?: string;
+    /** The user's sessionVersion when this session was issued. */
+    sv?: number;
   }
 }
 
@@ -22,8 +24,8 @@ export const requireAuth: RequestHandler = async (req, _res, next) => {
   if (!userId) throw ApiError.unauthorized();
 
   const user = await User.findById(userId).lean();
-  if (!user || !user.active) {
-    // The account was removed or disabled after the cookie was issued.
+  if (!user || !user.active || (req.session.sv ?? 0) !== (user.sessionVersion ?? 0)) {
+    // The account was removed or disabled, or an admin signed the user out, after the cookie was issued.
     await new Promise<void>((resolve) => req.session.destroy(() => resolve()));
     throw ApiError.unauthorized();
   }

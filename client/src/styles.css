@@ -255,3 +255,10 @@ button { font: inherit; color: inherit; }
 .preview-bar b { letter-spacing: 0.08em; color: #fff; }
 .preview-bar button { background: rgba(255, 255, 255, 0.12); color: #fff; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 8px; padding: 4px 12px; font-weight: 600; cursor: pointer; }
 .preview-bar button:hover { background: rgba(255, 255, 255, 0.2); }
+
+/* Confirm dialog (sign out). Uses the student theme on both the student side and the admin console. */
+.confirm-modal { width: min(400px, 100%); gap: 18px; text-align: left; }
+.confirm-modal h2 { font-size: 1.2rem; }
+.confirm-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: #eef0ff; color: var(--primary); }
+.confirm-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+@media (max-width: 420px) { .confirm-actions .btn { flex: 1 1 100%; } }

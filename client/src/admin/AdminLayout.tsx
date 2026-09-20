@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, type ReactNode } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { useAuth } from '../auth/AuthContext'
-import { setStudentView } from '../auth/studentView'
 import { Logo } from '../components/AppShell'
+import { SignOutDialog } from '../components/SignOutDialog'
 import { api } from '../lib/api'
 import './admin.css'
 
@@ -19,7 +19,6 @@ const ICONS = {
   resources: icon(<><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z" /><path d="M14 3v5h5" /></>),
   access: icon(<><circle cx="9" cy="8" r="3.2" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><path d="M16 5.2a3.2 3.2 0 0 1 0 5.6M18 14.4c1.8.8 3 2.6 3 5.6" /></>),
   config: icon(<><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></>),
-  back: icon(<path d="M15 6l-6 6 6 6" />),
 }
 
 function pageTitle(path: string): string {
@@ -31,11 +30,22 @@ function pageTitle(path: string): string {
   return 'Content'
 }
 
-/** Admin workspace: same brand and logo as the student app, but a navy header and a sidebar so it is clearly a different area. */
+/** Admin workspace: same theme, header and brand as the student app, plus a sidebar for the admin sections. */
 export function AdminLayout() {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  const { user } = useAuth()
+  const [confirmOut, setConfirmOut] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const firstName = user?.name?.trim().split(/\s+/)[0] || 'there'
   const { pathname } = useLocation()
+
+  useEffect(() => {
+    const close = (e: MouseEvent) => menuRef.current && !menuRef.current.contains(e.target as Node) && setMenuOpen(false)
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setMenuOpen(false)
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc) }
+  }, [])
 
   useEffect(() => {
     const previous = document.title
@@ -59,9 +69,21 @@ export function AdminLayout() {
             <span className="admin-tag">Admin</span>
           </Link>
           <div className="admin-top-right">
-            <Link to="/" className="admin-back" onClick={() => setStudentView(true)}>{ICONS.back}<span>Student preview</span></Link>
-            <span className="admin-user" title={user?.email}>{user?.email}</span>
-            <button className="admin-signout" onClick={() => { setStudentView(false); void logout().then(() => navigate('/login')) }}>Sign out</button>
+            <span className="admin-hello" title={user?.email}>Hey <b>{firstName}</b></span>
+            <div className="menu" ref={menuRef}>
+              <button className="avatar" style={{ border: 0, cursor: 'pointer' }} onClick={() => setMenuOpen((o) => !o)} aria-label="Account menu" aria-expanded={menuOpen} aria-haspopup="menu">
+                {user?.picture ? <img src={user.picture} alt="" referrerPolicy="no-referrer" /> : firstName.charAt(0).toUpperCase()}
+              </button>
+              {menuOpen && (
+                <div className="menu-panel" role="menu">
+                  <div style={{ padding: '8px 12px' }}>
+                    <div style={{ fontWeight: 700 }}>{user?.name}</div>
+                    <div className="muted small">{user?.email}</div>
+                  </div>
+                  <button className="menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setConfirmOut(true) }}>Sign out</button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -84,6 +106,7 @@ export function AdminLayout() {
           <Outlet />
         </main>
       </div>
+      {confirmOut && <SignOutDialog onClose={() => setConfirmOut(false)} />}
     </div>
   )
 }
