@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthContext'
 import { InfoTip } from '../components/InfoTip'
 import { ReportModal } from '../components/ReportModal'
 import { ErrorState, Spinner } from '../components/ui'
-import { YouTubePlayer } from '../components/YouTubePlayer'
+import { YouTubePlayer, type PlayerProblem } from '../components/YouTubePlayer'
 import { api, errorMessage, qs } from '../lib/api'
 import { formatDate, formatPct } from '../lib/format'
 import { useExamProfiles } from '../lib/hooks'
@@ -31,6 +31,7 @@ export function DictationPage() {
 
   const [videoIdx, setVideoIdx] = useState(0)
   const [rate, setRate] = useState(1)
+  const [problem, setProblem] = useState<PlayerProblem | null>(null)
   const [rates, setRates] = useState<number[]>(DEFAULT_RATES)
   const [profile, setProfile] = useState(user?.settings.examProfile ?? 'SSC_C')
   const [category, setCategory] = useState<Category>(user?.settings.category ?? 'general')
@@ -82,27 +83,31 @@ export function DictationPage() {
                   <span className="label">Dictation speed</span>
                   <div className="segmented" role="group" aria-label="Video speed">
                     {d.videos.map((v, i) => (
-                      <button key={v.youtubeVideoId} aria-pressed={i === videoIdx} onClick={() => { setVideoIdx(i); setRate(1) }}>{v.baseWpm} wpm</button>
+                      <button key={v.youtubeVideoId} aria-pressed={i === videoIdx} onClick={() => { setVideoIdx(i); setRate(1); setProblem(null) }}>{v.baseWpm} wpm</button>
                     ))}
                   </div>
                 </div>
               )}
 
-              <YouTubePlayer key={video.youtubeVideoId} videoId={video.youtubeVideoId} rate={rate} onRates={setRates} onRateChange={setRate} />
+              <YouTubePlayer key={video.youtubeVideoId} videoId={video.youtubeVideoId} rate={rate} onRates={setRates} onRateChange={setRate} onProblem={setProblem} />
 
-              <div className="speed-bar">
-                <span className="label">Playback speed</span>
-                <InfoTip label="About playback speed">
-                  <b>For practice only.</b> Playback speed just changes how fast the video plays, so you can slow a passage down or speed it up. The “≈ wpm” figure is an estimate (dictation speed × playback speed). It does not change how your typing is timed or checked.
-                </InfoTip>
-                <div className="segmented" role="group" aria-label="Playback speed">
-                  {selectableRates.map((r) => (
-                    <button key={r} aria-pressed={r === rate} onClick={() => setRate(r)}>{r}×</button>
-                  ))}
-                </div>
-                <span className="wpm-pill">≈ {effectiveWpm} wpm</span>
-              </div>
-              <div className="tip">Tip: slow the video down while you are learning a passage, then work back up to the exam speed ({d.videos[0]?.baseWpm ?? 100} wpm).</div>
+              {!problem && (
+                <>
+                  <div className="speed-bar">
+                    <span className="label">Playback speed</span>
+                    <InfoTip label="About playback speed">
+                      <b>For practice only.</b> Playback speed just changes how fast the video plays, so you can slow a passage down or speed it up. The “≈ wpm” figure is an estimate (dictation speed × playback speed). It does not change how your typing is timed or checked.
+                    </InfoTip>
+                    <div className="segmented" role="group" aria-label="Playback speed">
+                      {selectableRates.map((r) => (
+                        <button key={r} aria-pressed={r === rate} onClick={() => setRate(r)}>{r}×</button>
+                      ))}
+                    </div>
+                    <span className="wpm-pill">≈ {effectiveWpm} wpm</span>
+                  </div>
+                  <div className="tip">Tip: slow the video down while you are learning a passage, then work back up to the exam speed ({d.videos[0]?.baseWpm ?? 100} wpm).</div>
+                </>
+              )}
 
               <section className="card card-flat transcript" aria-label="Transcript">
                 <div className="spread">
@@ -151,7 +156,7 @@ export function DictationPage() {
             )}
             {hasDraft && <div className="alert alert-info">You have an unfinished attempt. Resuming keeps your timer and text.</div>}
             {start.error && <div className="alert alert-error">{errorMessage(start.error)}</div>}
-            <button className="btn btn-accent btn-lg" disabled={!d.ready || start.isPending} onClick={() => start.mutate(effectiveWpm ?? undefined)}>
+            <button className="btn btn-accent btn-lg" disabled={!d.ready || start.isPending} onClick={() => start.mutate(problem ? undefined : (effectiveWpm ?? undefined))}>
               {start.isPending ? 'Starting…' : hasDraft ? 'Resume typing' : 'Transcribe now →'}
             </button>
             <p className="muted small">The timer starts as soon as you press the button.</p>

@@ -170,6 +170,19 @@ button { font: inherit; color: inherit; }
 .listen-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 .player-frame { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden; background: #0b1230; box-shadow: var(--shadow-lg); }
 .player-frame > div, .player-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; }
+.player-fallback { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 20px 24px; text-align: center; color: #fff;
+  background: radial-gradient(520px 260px at 100% 0%, rgba(255, 122, 89, 0.28), transparent 60%), linear-gradient(135deg, #12204a 0%, #2f2a9e 100%); overflow: auto; }
+.player-fallback-icon { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.22); }
+.player-fallback h3 { color: #fff; font-size: 1.15rem; }
+.player-fallback p { color: rgba(255, 255, 255, 0.86); max-width: 34rem; font-size: 0.95rem; }
+.player-fallback .player-fallback-tip { color: rgba(255, 255, 255, 0.7); font-size: 0.85rem; }
+@media (max-width: 520px) {
+  .player-fallback { gap: 8px; padding: 14px; }
+  .player-fallback p { font-size: 0.88rem; }
+  /* On a phone the message is taller than a 16:9 box, so let the panel size the frame instead of clipping. */
+  .player-frame.has-problem { aspect-ratio: auto; }
+  .player-frame.has-problem > .player-fallback { position: relative; inset: auto; width: auto; height: auto; padding: 22px 16px; }
+}
 .speed-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .wpm-pill { background: var(--info-bg); color: var(--info-ink); border-radius: 12px; padding: 8px 14px; font-weight: 700; }
 .tip { background: var(--half-bg); color: var(--half-ink); border-radius: 12px; padding: 12px 14px; font-size: 0.92rem; }

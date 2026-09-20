@@ -201,3 +201,9 @@ Helmet headers, rate limits on the API and sign-in, a per-account lock after rep
 - A real typing-speed test (shown as "Coming soon" on the home page).
 - Upload files from the computer on the Resources page (storage not chosen yet).
 - Viewing PDFs inside the page instead of a new tab.
+- Audio fallback for videos that cannot be embedded (owner disabled embedding). For now the exercise page shows a "Watch on YouTube" panel instead. Parked idea: generate dictation audio from the verified transcript with a text-to-speech voice.
+  - Sarvam Bulbul v3 was trialled (en-IN, API key in `server/.env`, ₹3 per 1,000 characters, about ₹14 per exercise). Quality was good, but at pace 1.0 it speaks about 210 wpm, so words blur. Use pace around 0.7.
+  - To hit an exact dictation speed: split the text into phrases (never split at "U.S." style abbreviations), synthesise each, trim silence, and stitch with measured gaps. Limits: 2,500 characters per request, 30 requests per minute, no SSML.
+  - Cache per phrase, encode to MP3, keep in object storage (R2 or Vercel Blob), play with the same speed buttons, and mark the audio outdated when the transcript version changes. Optionally run speech recognition over the result as a quality check.
+  - Check the copyright and licence of the book text before publishing generated audio.
+- Optional admin check that flags videos which cannot be embedded (YouTube's oEmbed endpoint answers 401 for them), so they can be found before students hit them.
