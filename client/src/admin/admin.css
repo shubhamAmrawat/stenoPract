@@ -1,0 +1,60 @@
+/* Admin console: same brand and logo as the student app, but a navy header and a left sidebar so it reads as a workspace, not the practice site. */
+.admin-app {
+  --bg: #f3f5fa;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* top bar */
+.admin-top { position: sticky; top: 0; z-index: 30; background: #12204a; color: #fff; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.admin-top-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.admin-brand { display: flex; align-items: center; gap: 10px; color: #fff; text-decoration: none !important; font-family: var(--font-head); font-weight: 800; font-size: 1.1rem; }
+.admin-tag { border: 1px solid rgba(255, 255, 255, 0.28); color: #c7d0ea; border-radius: 6px; padding: 2px 8px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+.admin-top-right { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.admin-back { display: inline-flex; align-items: center; gap: 4px; color: #dbe2f5; text-decoration: none !important; font-weight: 600; font-size: 0.88rem; padding: 7px 12px; border-radius: 8px; white-space: nowrap; }
+.admin-back:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.admin-user { color: #9fb0da; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; padding: 0 10px; }
+.admin-signout { background: transparent; border: 0; color: #dbe2f5; cursor: pointer; font-size: 0.88rem; font-weight: 600; padding: 7px 12px; border-radius: 8px; }
+.admin-signout:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
+
+/* layout */
+.admin-body { max-width: 1280px; margin: 0 auto; padding: 24px 24px 64px; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 28px; align-items: start; }
+.admin-main { min-width: 0; display: flex; flex-direction: column; gap: 22px; }
+.admin-crumb { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.9rem; }
+.admin-crumb b { color: var(--ink); font-family: var(--font-head); font-size: 1.3rem; }
+
+/* sidebar */
+.admin-side { position: sticky; top: 84px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 2px; }
+.admin-side-title { color: var(--muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 10px 6px; }
+.admin-side a { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 9px; color: var(--muted); text-decoration: none !important; font-weight: 600; font-size: 0.93rem; }
+.admin-side a:hover { background: #eef1fb; color: var(--ink); }
+.admin-side a.active { background: #e8ecff; color: var(--primary); }
+.admin-count { margin-left: auto; background: #dc2626; color: #fff; border-radius: 999px; font-size: 0.7rem; font-weight: 700; padding: 1px 7px; }
+
+.admin-app .table th { background: #f6f8fc; }
+.admin-app .listen-grid { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); }
+
+@media (max-width: 860px) {
+  .admin-body { grid-template-columns: 1fr; gap: 16px; padding: 16px; }
+  .admin-side { position: static; flex-direction: row; overflow-x: auto; padding: 6px; }
+  .admin-side-title { display: none; }
+  .admin-side a { white-space: nowrap; }
+  .admin-user { display: none; }
+  .admin-app .listen-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .admin-back span { display: none; }
+}
+
+/* disabled "upload from computer" area on the Resources page */
+.dropzone { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 26px 16px; border: 2px dashed var(--border); border-radius: 16px; background: #f8f9fd; color: var(--muted); text-align: center; opacity: 0.75; cursor: not-allowed; }
+
+/* Resources: dynamic entry rows */
+.entry-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #fafbff; }
+.entry-title { width: 220px; }
+.entry-link { flex: 1 1 260px; min-width: 240px; }
+.entry-error { flex-basis: 100%; color: var(--full-ink); }
+.icon-btn { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 1.2rem; line-height: 1; cursor: pointer; }
+.icon-btn:hover { background: var(--full-bg); color: var(--full-ink); }
+.saved-tag { color: var(--muted); min-width: 64px; }
