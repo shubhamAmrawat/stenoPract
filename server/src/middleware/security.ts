@@ -13,7 +13,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 export const originCheck: RequestHandler = (req, _res, next) => {
   if (SAFE_METHODS.has(req.method)) return next();
   const origin = req.get('origin');
-  if (origin && origin !== env.clientOrigin) throw ApiError.forbidden('Cross-origin request blocked');
+  if (origin && !env.clientOrigins.includes(origin)) throw ApiError.forbidden('Cross-origin request blocked');
   next();
 };
 

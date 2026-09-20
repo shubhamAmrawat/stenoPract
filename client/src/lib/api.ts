@@ -18,11 +18,17 @@ interface Options {
   signal?: AbortSignal
 }
 
-/** Thin fetch wrapper: same-origin cookies, JSON in/out, errors as ApiError. */
+/**
+ * Where the API lives. Empty (the default) means the same origin as the page: in development Vite proxies /api to the server,
+ * and on Vercel vercel.json rewrites /api to it. Set VITE_API_URL (e.g. https://api.example.com) only when the API has its own domain.
+ */
+const API_BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').trim().replace(/\/+$/, '')
+
+/** Thin fetch wrapper: cookies included, JSON in/out, errors as ApiError. */
 export async function api<T>(path: string, { method = 'GET', body, signal }: Options = {}): Promise<T> {
   let res: Response
   try {
-    res = await fetch(`/api/v1${path}`, {
+    res = await fetch(`${API_BASE}/api/v1${path}`, {
       method,
       credentials: 'include',
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },

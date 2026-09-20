@@ -18,7 +18,8 @@ export const requestLogger = pinoHttp({
   customSuccessMessage: (req, res, ms) => `${req.method} ${req.url} ${res.statusCode} ${Math.round(ms)}ms`,
   customErrorMessage: (req, res, err) => `${req.method} ${req.url} ${res.statusCode} ${err.message}`,
   serializers: {
-    req: (req) => ({ id: req.id, method: req.method, url: req.url }),
+    // ip is the client address Express derives with TRUST_PROXY: check it against your real IP after deploying.
+    req: (req) => ({ id: req.id, method: req.method, url: req.url, ip: (req as { ip?: string }).ip }),
     res: (res) => ({ statusCode: res.statusCode }),
   },
 });

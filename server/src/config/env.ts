@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { parseOrigins, parseTrustProxy } from './parsers.js';
 dotenv.config({ quiet: true });
 
 function required(name: string): string {
@@ -29,7 +30,10 @@ export const env = {
   isProd,
   port: Number(process.env.PORT ?? 4000),
   dbUrl: required('DB_URL'),
-  clientOrigin: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
+  /** Browser origins allowed to call the API (CORS and the CSRF Origin check). CLIENT_ORIGIN may list several, comma-separated. */
+  clientOrigins: parseOrigins(process.env.CLIENT_ORIGIN, 'http://localhost:5173'),
+  /** Reverse proxies in front of the API. See parseTrustProxy. */
+  trustProxy: parseTrustProxy(process.env.TRUST_PROXY, isProd),
   logLevel: process.env.LOG_LEVEL ?? 'info',
 
   /** Signs the session cookie. Required in production; a fixed dev value is used locally. */

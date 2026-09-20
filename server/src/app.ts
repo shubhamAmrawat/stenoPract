@@ -18,12 +18,12 @@ export interface AppOptions {
 export function createApp(options: AppOptions = {}): express.Express {
   const app = express();
 
-  // Behind Render/Railway/Nginx the client's real IP and https-ness come from a proxy header.
-  if (env.isProd) app.set('trust proxy', 1);
+  // Behind Render/Railway/Nginx the client's real IP and https-ness come from proxy headers (TRUST_PROXY sets how many proxies to believe).
+  app.set('trust proxy', env.trustProxy);
 
   app.use(requestLogger);
   app.use(helmet());
-  app.use(cors({ origin: env.clientOrigin, credentials: true }));
+  app.use(cors({ origin: env.clientOrigins, credentials: true }));
   app.use(express.json({ limit: '1mb' }));
 
   app.get('/api/v1/health', (_req, res) => {

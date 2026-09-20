@@ -29,7 +29,7 @@ English only for now. Sign-in is by Google and the app is invite-only.
 ## Project layout
 
 ```
-client/            React app (student side and the /admin console)
+client/            React app (student side and the /admin console); vercel.json holds the Vercel rewrites
   src/pages/       student pages: login, home, book, dictation, write, analysis, history, dashboard
   src/admin/       admin console pages
   src/auth/        Google sign-in button, auth context, route guards
@@ -87,14 +87,22 @@ Server (`server/.env`):
 | `GOOGLE_CLIENT_ID` | for Google sign-in | OAuth client ID, the same value as the client's `VITE_GOOGLE_CLIENT_ID` |
 | `ADMIN_EMAILS` | recommended | Comma-separated emails that become admins when they sign in |
 | `ALLOWED_EMAILS` | optional | Bootstrap list of emails that can always sign in. Day to day, invite people from Admin, Access instead |
-| `CLIENT_ORIGIN` | no | Allowed browser origin. Default `http://localhost:5173` |
+| `CLIENT_ORIGIN` | in production | The site(s) that open the app in a browser. Several allowed, comma-separated. Default `http://localhost:5173` |
+| `TRUST_PROXY` | no | How many reverse proxies sit in front of the API. Default `1` in production, none locally. A number or `false` |
 | `COOKIE_SAMESITE` | no | `lax` (default). Use `none` (needs HTTPS) only if the client and API are on different sites |
 | `PORT`, `LOG_LEVEL` | no | Default `4000` and `info` |
 | `AUTH_DEV_LOGIN` | no | `true` enables an email-only dev login. Ignored in production |
 | `YOUTUBE_API_KEY` | for playlist import | YouTube Data API v3 key |
 | `GOOGLE_DRIVE_API_KEY` | for Drive folder import | Drive API key. Falls back to the YouTube key if that key also allows the Drive API |
 
-Client (`client/.env.local`): `VITE_GOOGLE_CLIENT_ID`. Only `VITE_` variables reach the browser, so never put secrets here.
+Client (`client/.env.local`, or the Vercel project's environment variables):
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `VITE_GOOGLE_CLIENT_ID` | for Google sign-in | The same OAuth client ID as the server's `GOOGLE_CLIENT_ID` |
+| `VITE_API_URL` | no | Where the API lives, for example `https://api.example.com` (no trailing slash). Leave empty to call the same origin: Vite proxies `/api` in development and `vercel.json` rewrites it on Vercel |
+
+Only `VITE_` variables reach the browser, so never put secrets here. They are baked in at build time, so redeploy after changing one.
 
 Never commit `.env` files. They are ignored by git; only the `.env.example` files are tracked.
 
@@ -142,10 +150,32 @@ All routes live under `/api/v1`. A health check is at `/api/v1/health`. The Post
 
 ## Deploying
 
-1. Build both apps with `npm run build`.
-2. Run the server with `NODE_ENV=production`. It refuses to start without `SESSION_SECRET` and `DB_URL`.
-3. Set `CLIENT_ORIGIN` to the deployed site, and add that origin to the OAuth client's Authorized JavaScript origins. One Tap needs HTTPS.
-4. Serve the built client and route `/api` to the server so the browser sees one site. If they must be on different sites, set `COOKIE_SAMESITE=none`.
+The API runs on Render and the client on Vercel. The browser only ever talks to the Vercel site, and Vercel forwards `/api/*` to Render (see `client/vercel.json`). That keeps the session cookie first-party, so no CORS setup or `COOKIE_SAMESITE=none` is needed, and a custom domain later is just an extra domain on the Vercel project.
+
+### 1. API on Render (Web Service)
+
+- Root directory `server`. Build command `npm install --include=dev && npm run build` (TypeScript is a dev dependency). Start command `npm start`. Health check path `/api/v1/health`.
+- Environment variables: `NODE_VERSION=24`, `NODE_ENV=production`, `DB_URL`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `ADMIN_EMAILS`, and `CLIENT_ORIGIN` set to your Vercel URL (for example `https://your-app.vercel.app`). Add `YOUTUBE_API_KEY` and `GOOGLE_DRIVE_API_KEY` if you use the imports. The server refuses to start in production without `SESSION_SECRET` and `DB_URL`.
+- In Atlas, Network Access must allow Render. Render publishes IP ranges rather than one fixed address, so the simplest setting is `0.0.0.0/0`, protected by the database password.
+- Free instances sleep after 15 minutes without traffic, and the first request afterwards takes about a minute.
+
+### 2. Client on Vercel
+
+- Import the repository and set the Root Directory to `client`. The Vite preset is detected: build `npm run build`, output `dist`.
+- Environment variable: `VITE_GOOGLE_CLIENT_ID`. Leave `VITE_API_URL` empty.
+- In `client/vercel.json`, replace `YOUR-API-SERVICE.onrender.com` with your Render host. The `/api` rewrite must stay above the catch-all that serves `index.html`.
+
+### 3. Google sign-in
+
+Add the Vercel URL to the OAuth client's Authorized JavaScript origins (and your custom domain later). One Tap needs HTTPS.
+
+### 4. Check it
+
+Open `https://<your-vercel-url>/api/v1/health`; it should return `{"status":"ok", ...}`. Then sign in. Finally open the Render logs: each request line has an `ip` field, which should be your own public IP. If it shows a Vercel or Render address instead, every visitor shares one rate-limit bucket, so try `TRUST_PROXY=2` (or `1`) until it matches.
+
+### Own domain later
+
+With `app.example.com` and `api.example.com` on one domain you can call the API directly: set `VITE_API_URL=https://api.example.com` on Vercel, list `https://app.example.com` in `CLIENT_ORIGIN`, and add the Google origin. Both are subdomains of one site, so the default `COOKIE_SAMESITE=lax` still works.
 
 ## Security notes
 
