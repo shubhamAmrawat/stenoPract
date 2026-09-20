@@ -184,11 +184,11 @@ describe('grading configuration', () => {
     const { dictation } = await createDictation();
     const { agent } = await admin();
     const before = (await agent.get('/api/v1/admin/exam-profiles')).body.items.find((p: { code: string }) => p.code === 'SSC_C');
-    expect(before).toMatchObject({ rulesVersion: 1, verifiedAgainstNotice: false, limits: { general: 5, reserved: 7 } });
+    expect(before).toMatchObject({ rulesVersion: 1, verifiedAgainstNotice: true, limits: { general: 5, reserved: 7 } });
 
-    const put = await agent.put('/api/v1/admin/exam-profiles/ssc_c').send({ ...before, limits: { general: 2, reserved: 3 }, verifiedAgainstNotice: true });
+    const put = await agent.put('/api/v1/admin/exam-profiles/ssc_c').send({ ...before, limits: { general: 2, reserved: 3 }, verifiedAgainstNotice: false });
     expect(put.status).toBe(200);
-    expect(put.body.profile).toMatchObject({ rulesVersion: 2, verifiedAgainstNotice: true, limits: { general: 2, reserved: 3 } });
+    expect(put.body.profile).toMatchObject({ rulesVersion: 2, verifiedAgainstNotice: false, limits: { general: 2, reserved: 3 } });
 
     // An unchanged re-save does not bump the version.
     const same = await agent.put('/api/v1/admin/exam-profiles/SSC_C').send({ ...put.body.profile });

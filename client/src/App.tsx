@@ -1,4 +1,4 @@
-import { Link, Route, Routes } from 'react-router'
+import { Link, Navigate, Route, Routes } from 'react-router'
 import { AccessPage } from './admin/AccessPage'
 import { AdminLayout } from './admin/AdminLayout'
 import { ConfigPage } from './admin/ConfigPage'
@@ -16,7 +16,7 @@ import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { ResourcesPage } from './pages/ResourcesPage'
 import { SetPage } from './pages/SetPage'
-import { SettingsPage } from './pages/SettingsPage'
+import { ProfilePage } from './pages/ProfilePage'
 import { WritePage } from './pages/WritePage'
 
 function NotFound() {
@@ -56,7 +56,9 @@ export default function App() {
             <Route path="/attempts/:id" element={<AnalysisPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/history" element={<HistoryPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            {/* The exam settings moved into the profile page; keep old links and bookmarks working. */}
+            <Route path="/settings" element={<Navigate to="/profile" replace />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Route>

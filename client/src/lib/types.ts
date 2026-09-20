@@ -8,6 +8,15 @@ export interface User {
   picture: string | null
   role: Role
   settings: { examProfile: string; category: Category }
+  phone: string | null
+  gender: 'female' | 'male' | 'other' | 'prefer-not-to-say' | null
+  bio: string | null
+  signInMethod: 'google' | 'password'
+  memberSince: string | null
+  /** The student has uploaded a photo of their own. */
+  hasCustomPhoto: boolean
+  /** The server has photo storage set up. */
+  canUploadPhoto: boolean
 }
 
 export interface ExamProfile {
@@ -158,13 +167,27 @@ export interface Paged<T> {
   limit: number
 }
 
-export type ResourceGroupKey = 'kc-magazines' | 'ssc-previous-years'
+/** A shelf on the Resources area. `group` is its address (/resources/<group>). */
+export interface ResourceGroup {
+  id: string
+  group: string
+  title: string
+  blurb: string
+  order: number
+  published: boolean
+  /** How many files it holds (files students can see, on the student side). */
+  count?: number
+}
 
 export interface ResourceItem {
   id: string
-  group: ResourceGroupKey
+  group: string
   title: string
   url: string
+  /** Uploaded to our own storage (as opposed to a link to somewhere else). */
+  uploaded: boolean
+  /** File size in bytes, for uploaded files. */
+  size: number | null
   order: number
   published: boolean
 }

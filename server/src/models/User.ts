@@ -6,9 +6,18 @@ const userSchema = new Schema(
     googleId: { type: String },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     name: { type: String, required: true, trim: true },
+    /** The Google profile picture, refreshed at every Google sign-in. */
     picture: String,
+    /** Object key of a photo the student uploaded (in the R2 bucket). When set it is shown instead of `picture`. */
+    avatarKey: String,
+    /** True once the student has edited their name, so a later Google sign-in stops overwriting it. */
+    nameCustomised: { type: Boolean, default: false },
     /** scrypt hash (see services/password.ts). Only accounts created with "Create account" have one. Never sent to the client. */
     passwordHash: String,
+    /** Optional details the student can add on the Profile page. */
+    phone: String,
+    gender: { type: String, enum: ['female', 'male', 'other', 'prefer-not-to-say'] },
+    bio: { type: String, maxlength: 200 },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     active: { type: Boolean, default: true },
     settings: {

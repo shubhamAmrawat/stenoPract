@@ -6,6 +6,7 @@ import { attemptsRouter } from './modules/attempts/routes.js';
 import { authRouter } from './modules/auth/routes.js';
 import { catalogRouter } from './modules/catalog/routes.js';
 import { libraryRouter } from './modules/library/routes.js';
+import { profileRouter } from './modules/profile/routes.js';
 import { reportsRouter } from './modules/reports/routes.js';
 import { resourcesRouter } from './modules/resources/routes.js';
 
@@ -16,6 +17,7 @@ apiRouter.use(authRouter);
 
 // Everything below needs a signed-in student.
 apiRouter.use(requireAuth);
+apiRouter.use(profileRouter);
 apiRouter.use(catalogRouter);
 apiRouter.use(libraryRouter);
 apiRouter.use(attemptsRouter);

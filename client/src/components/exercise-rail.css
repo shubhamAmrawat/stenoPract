@@ -1,0 +1,73 @@
+/* Exercise list on the dictation page.
+   Wide screens (1280px and up): a column on the right, level with the video and the attempts card, and the page grows a little wider to make room for it.
+   Anything narrower: the same list slides in over the page from the right, like a menu. */
+
+.dict-shell { display: block; }
+.dict-main { min-width: 0; }
+
+.rail-toggle { gap: 8px; white-space: nowrap; }
+.dict-topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+/* ---------- the list itself ---------- */
+.ex-rail { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); min-height: 0; overflow: hidden; }
+.ex-rail-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 16px 12px 20px; }
+.ex-rail-title { display: flex; flex-direction: column; min-width: 0; }
+.ex-rail-title b { font-family: var(--font-head); color: var(--ink); font-size: 1.02rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-rail-tools { display: flex; flex-direction: column; gap: 10px; padding: 0 16px 14px; border-bottom: 1px solid var(--border); }
+.ex-rail-tools .segmented { align-self: stretch; }
+.ex-rail-tools .segmented button { flex: 1; }
+.ex-rail-msg { padding: 20px 18px; }
+
+.ex-list { position: relative; list-style: none; margin: 0; padding: 8px; overflow-y: auto; overscroll-behavior: contain; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 2px; }
+.ex-item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 12px; padding: 10px 12px; border-radius: 12px; color: var(--ink); text-decoration: none !important; border: 1px solid transparent; position: relative; }
+.ex-item:hover { background: #f3f5fd; }
+.ex-item:focus-visible { outline: 3px solid rgba(79, 70, 229, 0.3); outline-offset: -1px; }
+.ex-item.disabled { opacity: 0.5; cursor: not-allowed; }
+.ex-item.disabled:hover { background: transparent; }
+.ex-item[aria-current='page'] { background: var(--info-bg); border-color: #cfd6ff; }
+.ex-item[aria-current='page']::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 4px; border-radius: 0 4px 4px 0; background: var(--primary); }
+.ex-no { font-family: var(--font-head); font-weight: 800; font-size: 1.1rem; color: var(--primary); min-width: 2.6ch; font-variant-numeric: tabular-nums; }
+.ex-meta { font-size: 0.84rem; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-status { font-size: 0.8rem; text-align: right; }
+.ex-pill { background: #e4f8ee; color: #0e6b3b; border-radius: 999px; padding: 3px 9px; font-weight: 700; }
+
+/* ---------- wide screens: docked column ---------- */
+@media (min-width: 1280px) {
+  .dict-shell.is-wide {
+    --rail-w: 320px;
+    /* Break out of the normal 1120px page width so the video and the typing card keep their size. */
+    width: min(1440px, calc(100vw - 40px));
+    margin-left: calc(50% - min(1440px, calc(100vw - 40px)) / 2);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--rail-w);
+    grid-template-rows: auto 1fr;
+    column-gap: 24px;
+    row-gap: 24px;
+    align-items: start;
+  }
+  .dict-shell.is-wide.rail-collapsed { --rail-w: 52px; }
+  /* The title block stays in the left column; the list starts level with the video and ends level with the attempts card. */
+  .dict-shell.is-wide > .dict-view { display: contents; }
+  .dict-shell.is-wide .page-header { grid-column: 1; grid-row: 1; margin-bottom: 0; }
+  /* Trim the page's own top and bottom padding here so a page that fits the screen does not get a scrollbar for the last few pixels. */
+  .page:has(.dict-shell.is-wide) { padding-top: 20px; padding-bottom: 24px; }
+  .dict-shell.is-wide .dict-body { grid-column: 1; grid-row: 2; min-width: 0; }
+  /* contain: size keeps the (long) list from stretching the row; it simply fills whatever height the left side has. */
+  .ex-rail-docked { grid-column: 2; grid-row: 2; align-self: stretch; contain: size; }
+  .rail-handle { grid-column: 2; grid-row: 2; }
+}
+
+.rail-handle { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 16px; align-self: stretch; padding: 18px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); color: var(--primary); cursor: pointer; font: inherit; }
+.rail-handle span { writing-mode: vertical-rl; font-weight: 700; font-size: 0.9rem; letter-spacing: 0.04em; color: var(--muted); }
+.rail-handle:hover { background: #f3f5fd; }
+.rail-handle:hover span { color: var(--ink); }
+.rail-handle:focus-visible { outline: 3px solid rgba(79, 70, 229, 0.3); outline-offset: 2px; }
+
+/* ---------- smaller screens: slide-over ---------- */
+.rail-backdrop { position: fixed; inset: 0; background: rgba(18, 32, 74, 0.45); z-index: 58; animation: rail-fade 0.18s ease-out; }
+.ex-rail-drawer { position: fixed; top: 0; bottom: 0; right: 0; width: min(400px, 90vw); z-index: 59; border-radius: 20px 0 0 20px; border-right: 0; box-shadow: var(--shadow-lg); animation: rail-in 0.22s ease-out; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+.ex-rail-drawer .ex-item { padding: 13px 12px; } /* bigger tap targets on touch screens */
+
+@keyframes rail-in { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes rail-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .rail-backdrop, .ex-rail-drawer { animation: none; } }

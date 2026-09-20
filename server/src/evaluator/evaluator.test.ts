@@ -104,6 +104,13 @@ describe('half mistakes', () => {
     expect(kinds(evaluate('The member spoke.', 'The members spoke.'))).toEqual(['plural']);
     expect(kinds(evaluate('The members spoke.', 'The member spoke.'))).toEqual(['plural']);
     expect(kinds(evaluate('Many cities grew.', 'Many city grew.'))).toEqual(['plural']);
+    // irregular plurals are still "singular for plural", not a wrong or incomplete word
+    expect(kinds(evaluate('The children played.', 'The child played.'))).toEqual(['plural']);
+    expect(kinds(evaluate('The men left.', 'The man left.'))).toEqual(['plural']);
+    expect(kinds(evaluate('The chairman spoke.', 'The chairmen spoke.'))).toEqual(['plural']);
+    expect(kinds(evaluate('The people came.', 'The person came.'))).toEqual(['plural']);
+    expect(kinds(evaluate('Their lives changed.', 'Their life changed.'))).toEqual(['plural']);
+    expect(kinds(evaluate('The women agreed.', 'The woman agreed.'))).toEqual(['plural']);
   });
 
   it('missing full stop', () => {

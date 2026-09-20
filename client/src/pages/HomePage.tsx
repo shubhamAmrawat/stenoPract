@@ -3,9 +3,8 @@ import { Link } from 'react-router'
 import { useAuth } from '../auth/AuthContext'
 import { Empty, ErrorState, Spinner } from '../components/ui'
 import { api } from '../lib/api'
-import { RESOURCE_GROUPS } from '../lib/resources'
 import { thumbUrl } from '../lib/thumb'
-import type { DictationSet, ResourceGroupKey } from '../lib/types'
+import type { DictationSet, ResourceGroup } from '../lib/types'
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -57,11 +56,10 @@ function SetCard({ s }: { s: DictationSet }) {
 export function HomePage() {
   const { user } = useAuth()
   const setsQ = useQuery({ queryKey: ['sets'], queryFn: () => api<{ items: DictationSet[] }>('/sets').then((r) => r.items) })
-  const resQ = useQuery({ queryKey: ['resource-groups'], queryFn: () => api<{ groups: { group: ResourceGroupKey; count: number }[] }>('/resources').then((r) => r.groups) })
+  const resQ = useQuery({ queryKey: ['resource-groups'], queryFn: () => api<{ groups: ResourceGroup[] }>('/resources').then((r) => r.groups) })
 
   const firstName = user?.name.split(' ')[0] ?? ''
   const attempted = setsQ.data?.reduce((n, s) => n + s.attemptedCount, 0) ?? 0
-  const counts = new Map((resQ.data ?? []).map((g) => [g.group, g.count]))
 
   return (
     <div className="stack-lg home">
@@ -110,6 +108,7 @@ export function HomePage() {
         </div>
       </section>
 
+      {(resQ.isPending || (resQ.data?.length ?? 0) > 0) && (
       <section className="home-section" aria-labelledby="h-res">
         <div className="home-section-head">
           <span className="home-num">03</span>
@@ -118,27 +117,28 @@ export function HomePage() {
             <p className="muted small">Study material to keep on your phone or print.</p>
           </div>
         </div>
-        <div className="res-tiles">
-          {(Object.keys(RESOURCE_GROUPS) as ResourceGroupKey[]).map((g, i) => {
-            const meta = RESOURCE_GROUPS[g]
-            const n = counts.get(g)
-            return (
-              <Link key={g} to={`/resources/${g}`} className="res-tile">
-                <span className={`tile-icon ${i === 0 ? 'tile-indigo' : 'tile-coral'}`}>{i === 0 ? <BookIcon /> : <FileIcon />}</span>
-                <div className="grow">
-                  <span className="badge badge-muted">{meta.tag}</span>
-                  <h3>{meta.title}</h3>
-                  <p className="muted small">{meta.blurb}</p>
-                </div>
-                <div className="res-tile-foot">
-                  <span className="muted small">{n === undefined ? '' : n === 0 ? 'Being added' : `${n} file${n === 1 ? '' : 's'}`}</span>
-                  <span className="tile-cta">Open →</span>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
+        {resQ.data && resQ.data.length > 0 && (
+          <div className="res-tiles">
+            {resQ.data.map((g, i) => {
+              const n = g.count ?? 0
+              return (
+                <Link key={g.group} to={`/resources/${g.group}`} className="res-tile">
+                  <span className={`tile-icon ${i % 2 === 0 ? 'tile-indigo' : 'tile-coral'}`}>{i % 2 === 0 ? <BookIcon /> : <FileIcon />}</span>
+                  <div className="grow">
+                    <h3>{g.title}</h3>
+                    {g.blurb && <p className="muted small">{g.blurb}</p>}
+                  </div>
+                  <div className="res-tile-foot">
+                    <span className="muted small">{n === 0 ? 'Being added' : `${n} file${n === 1 ? '' : 's'}`}</span>
+                    <span className="tile-cta">Open →</span>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        )}
       </section>
+      )}
     </div>
   )
 }

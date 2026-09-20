@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { useAuth } from '../auth/AuthContext'
+import { Avatar } from './Avatar'
 import { SignOutDialog } from './SignOutDialog'
 import { setStudentView } from '../auth/studentView'
 import '../student.css'
@@ -51,8 +52,8 @@ export function AppShell() {
             <NavLink to="/history">History</NavLink>
           </nav>
           <div className="menu" ref={menuRef}>
-            <button className="avatar" style={{ border: 0, cursor: 'pointer' }} onClick={() => setOpen((o) => !o)} aria-label="Account menu" aria-expanded={open}>
-              {user.picture ? <img src={user.picture} alt="" referrerPolicy="no-referrer" /> : user.name.charAt(0).toUpperCase()}
+            <button className="avatar-btn" onClick={() => setOpen((o) => !o)} aria-label="Account menu" aria-expanded={open} aria-haspopup="menu">
+              <Avatar name={user.name} picture={user.picture} />
             </button>
             {open && (
               <div className="menu-panel">
@@ -60,7 +61,7 @@ export function AppShell() {
                   <div style={{ fontWeight: 700 }}>{user.name}</div>
                   <div className="muted small">{user.email}</div>
                 </div>
-                <button className="menu-item" onClick={() => { setOpen(false); navigate('/settings') }}>Exam settings</button>
+                <button className="menu-item" onClick={() => { setOpen(false); navigate('/profile') }}>Profile &amp; exam settings</button>
                 <button className="menu-item" onClick={() => { setOpen(false); setConfirmOut(true) }}>Sign out</button>
               </div>
             )}

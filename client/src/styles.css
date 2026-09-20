@@ -124,11 +124,20 @@ button { font: inherit; color: inherit; }
 .brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-head); font-weight: 800; font-size: 1.15rem; color: var(--ink); text-decoration: none !important; }
 .brand-mark { width: 34px; height: 34px; border-radius: 10px; background: var(--primary); display: grid; place-items: center; }
 .nav { display: flex; gap: 4px; flex: 1; overflow-x: auto; scrollbar-width: none; }
+/* Wider than a phone: brand on the left, tabs dead centre, account menu on the right. Equal outer columns keep the tabs centred whatever the width of the brand or the menu. */
+@media (min-width: 640px) {
+  .topbar-inner { display: grid; grid-template-columns: 1fr auto 1fr; }
+  .topbar-inner > .brand { justify-self: start; }
+  .topbar-inner > .nav { flex: none; justify-self: center; }
+  .topbar-inner > .menu { justify-self: end; }
+}
 .nav a { padding: 8px 14px; border-radius: 10px; color: var(--muted); font-weight: 600; font-size: 0.95rem; text-decoration: none !important; white-space: nowrap; }
 .nav a:hover { background: #eef1fb; }
 .nav a.active { background: var(--info-bg); color: var(--info-ink); }
 .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--info-bg); color: var(--info-ink); display: grid; place-items: center; font-weight: 700; overflow: hidden; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-btn { border: 0; background: none; padding: 0; border-radius: 50%; cursor: pointer; display: block; line-height: 0; }
+.avatar-btn:hover .avatar { box-shadow: 0 0 0 3px #d5dcfb; }
 .menu { position: relative; }
 .menu-panel {
   position: absolute; right: 0; top: calc(100% + 8px); min-width: 230px; background: #fff; border: 1px solid var(--border);
@@ -167,9 +176,53 @@ button { font: inherit; color: inherit; }
 .search { max-width: 280px; }
 
 /* ---------- Listen page ---------- */
-.listen-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.listen-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 20px; align-items: stretch; }
+/* Right-hand card: tabs on top, a body that never changes height, and the start button always pinned at the bottom. */
+.side-card { display: flex; flex-direction: column; padding: 0; }
+.side-tabs { border-radius: var(--radius) var(--radius) 0 0; overflow: hidden; display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--border); background: #f6f8ff; }
+.side-tabs button { background: transparent; border: 0; border-radius: 0; cursor: pointer; font-family: inherit; padding: 14px 12px; font-weight: 700; font-size: 0.95rem; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s, background 0.15s; }
+.side-tabs button:hover { color: var(--ink); }
+.side-tabs button[aria-selected='true'] { color: var(--primary); border-bottom-color: var(--primary); background: var(--surface); }
+.side-body { position: relative; flex: 1; min-height: 0; }
+.side-pane { padding: 20px; }
+/* The transcript is taken out of the flow so a long text scrolls inside the card instead of stretching the page. */
+.side-scroll { position: absolute; inset: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.transcript-text { display: flex; flex-direction: column; gap: 12px; font-size: 0.98rem; line-height: 1.75; }
+.listen-grid > .stack > .player-frame.has-problem { flex: 1; aspect-ratio: auto; min-height: 260px; }
+.side-foot { border-radius: 0 0 var(--radius) var(--radius); border-top: 1px solid var(--border); padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 8px; background: var(--surface); }
+.attempts { display: flex; flex-direction: column; gap: 16px; }
+.attempts-head { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
+.attempts-report { margin-left: auto; }
+/* Up to five results as equal tiles in one tidy row (they wrap into a neat grid on narrow screens). */
+.attempt-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
+.attempt-tile { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: #f6f8ff; border: 1px solid var(--border); border-radius: 14px; color: var(--ink); text-decoration: none !important; transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s; }
+.attempt-tile:hover { border-color: #b9c2ff; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.12); transform: translateY(-1px); }
+.attempt-tile:focus-visible { outline: 3px solid rgba(79, 70, 229, 0.3); outline-offset: 1px; }
+.attempt-pct { font-family: var(--font-head); font-weight: 800; font-size: 1.5rem; line-height: 1.1; color: var(--ink); }
+.attempt-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
+.attempt-view { font-size: 0.82rem; font-weight: 700; color: var(--primary); }
+@media (max-width: 520px) {
+  .attempt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .attempt-tile { padding: 10px 12px; }
+  .attempt-pct { font-size: 1.3rem; }
+  .attempt-foot { flex-wrap: wrap; }
+  .attempts-report { margin-left: 0; }
+}
 .player-frame { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden; background: #0b1230; box-shadow: var(--shadow-lg); }
 .player-frame > div, .player-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; }
+.player-fallback { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 20px 24px; text-align: center; color: #fff;
+  background: radial-gradient(520px 260px at 100% 0%, rgba(255, 122, 89, 0.28), transparent 60%), linear-gradient(135deg, #12204a 0%, #2f2a9e 100%); overflow: auto; }
+.player-fallback-icon { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.22); }
+.player-fallback h3 { color: #fff; font-size: 1.15rem; }
+.player-fallback p { color: rgba(255, 255, 255, 0.86); max-width: 34rem; font-size: 0.95rem; }
+.player-fallback .player-fallback-tip { color: rgba(255, 255, 255, 0.7); font-size: 0.85rem; }
+@media (max-width: 520px) {
+  .player-fallback { gap: 8px; padding: 14px; }
+  .player-fallback p { font-size: 0.88rem; }
+  /* On a phone the message is taller than a 16:9 box, so let the panel size the frame instead of clipping. */
+  .player-frame.has-problem { aspect-ratio: auto; }
+  .player-frame.has-problem > .player-fallback { position: relative; inset: auto; width: auto; height: auto; padding: 22px 16px; }
+}
 .speed-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .wpm-pill { background: var(--info-bg); color: var(--info-ink); border-radius: 12px; padding: 8px 14px; font-weight: 700; }
 .tip { background: var(--half-bg); color: var(--half-ink); border-radius: 12px; padding: 12px 14px; font-size: 0.92rem; }
