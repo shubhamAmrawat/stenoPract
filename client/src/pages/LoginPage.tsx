@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext'
 import { GoogleButton } from '../auth/GoogleButton'
 import { Logo } from '../components/AppShell'
 import { ApiError, api, errorMessage } from '../lib/api'
+import { useApplyTheme } from '../lib/useTheme'
 import type { User } from '../lib/types'
 import './login.css'
 
@@ -39,6 +40,7 @@ function PasswordField({ id, label, value, onChange, autoComplete, hint, invalid
 }
 
 export function LoginPage() {
+  useApplyTheme(null) // the platform's default colours
   const { user, setUser } = useAuth()
   const location = useLocation()
   const from = (location.state as { from?: string } | null)?.from ?? '/'

@@ -4,6 +4,8 @@ import { useAuth } from '../auth/AuthContext'
 import { Avatar } from './Avatar'
 import { SignOutDialog } from './SignOutDialog'
 import { setStudentView } from '../auth/studentView'
+import { THEMES } from '../lib/themes'
+import { useThemeChoice } from '../lib/useTheme'
 import '../student.css'
 
 export function Logo() {
@@ -22,6 +24,7 @@ export function AppShell() {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [confirmOut, setConfirmOut] = useState(false)
+  const { theme, choose } = useThemeChoice()
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -60,6 +63,14 @@ export function AppShell() {
                 <div style={{ padding: '8px 12px' }}>
                   <div style={{ fontWeight: 700 }}>{user.name}</div>
                   <div className="muted small">{user.email}</div>
+                </div>
+                <div className="menu-theme" role="group" aria-label="Colour theme">
+                  <span>Theme</span>
+                  <div className="menu-theme-dots">
+                    {THEMES.map((t) => (
+                      <button key={t.id} type="button" className="theme-dot" data-theme={t.id} aria-label={t.name} title={t.name} aria-pressed={t.id === theme} onClick={() => void choose(t.id).catch(() => undefined)} />
+                    ))}
+                  </div>
                 </div>
                 <button className="menu-item" onClick={() => { setOpen(false); navigate('/profile') }}>Profile &amp; exam settings</button>
                 <button className="menu-item" onClick={() => { setOpen(false); setConfirmOut(true) }}>Sign out</button>

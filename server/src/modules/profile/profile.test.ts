@@ -15,6 +15,44 @@ const photo = (w = 900, h = 600) => sharp({ create: { width: w, height: h, chann
 const upload = (agent: ReturnType<typeof request.agent>, body: Buffer | string, type = 'image/jpeg') =>
   agent.put('/api/v1/me/avatar').set('Content-Type', type).send(body);
 
+describe('colour theme', () => {
+  it('is unset until the student picks one', async () => {
+    const { agent } = await loginAs(app, 't@test.com');
+    expect((await agent.get('/api/v1/auth/me')).body.user.theme).toBeNull();
+  });
+
+  it('saves the chosen theme and returns it on the next visit', async () => {
+    const { agent } = await loginAs(app, 't@test.com');
+    const res = await agent.patch('/api/v1/me/profile').send({ theme: 'forest' });
+    expect(res.status).toBe(200);
+    expect(res.body.user.theme).toBe('forest');
+    expect((await agent.get('/api/v1/auth/me')).body.user.theme).toBe('forest');
+    const again = await loginAs(app, 't@test.com');
+    expect((await again.agent.get('/api/v1/auth/me')).body.user.theme).toBe('forest');
+  });
+
+  it('can be changed without touching anything else', async () => {
+    const { agent } = await loginAs(app, 't@test.com', 'Asha');
+    await agent.patch('/api/v1/me/profile').send({ name: 'Asha Verma', bio: 'Hello' });
+    const res = await agent.patch('/api/v1/me/profile').send({ theme: 'plum' });
+    expect(res.body.user).toMatchObject({ theme: 'plum', name: 'Asha Verma', bio: 'Hello' });
+  });
+
+  it('is kept per student', async () => {
+    const a = await loginAs(app, 'a@test.com');
+    const b = await loginAs(app, 'b@test.com');
+    await a.agent.patch('/api/v1/me/profile').send({ theme: 'slate' });
+    expect((await b.agent.get('/api/v1/auth/me')).body.user.theme).toBeNull();
+  });
+
+  it('rejects a theme that does not exist', async () => {
+    const { agent } = await loginAs(app, 't@test.com');
+    expect((await agent.patch('/api/v1/me/profile').send({ theme: 'neon' })).status).toBe(400);
+    expect((await agent.patch('/api/v1/me/profile').send({ theme: '' })).status).toBe(400);
+    expect((await agent.get('/api/v1/auth/me')).body.user.theme).toBeNull();
+  });
+});
+
 describe('profile name', () => {
   it('needs a session', async () => {
     expect((await request(app).patch('/api/v1/me/profile').send({ name: 'X' })).status).toBe(401);

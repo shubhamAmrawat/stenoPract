@@ -7,7 +7,9 @@ import { ErrorState, Spinner } from '../components/ui'
 import { api, errorMessage } from '../lib/api'
 import { useExamProfiles } from '../lib/hooks'
 import { squarePhoto } from '../lib/image'
+import { THEMES, type ThemeId } from '../lib/themes'
 import type { Category, User } from '../lib/types'
+import { useThemeChoice } from '../lib/useTheme'
 
 const CameraIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -30,6 +32,7 @@ export function ProfilePage() {
         <DetailsCard user={user} />
         <ExamCard user={user} />
       </div>
+      <ThemeCard />
     </div>
   )
 }
@@ -234,6 +237,55 @@ function ExamCard({ user }: { user: User }) {
           </div>
         </>
       )}
+    </section>
+  )
+}
+
+/* ---------- colour theme ---------- */
+
+function ThemeCard() {
+  const { theme, choose } = useThemeChoice()
+  const [state, setState] = useState<'idle' | 'saved' | 'error'>('idle')
+  const [message, setMessage] = useState('')
+
+  const pick = (id: ThemeId) => {
+    setState('idle')
+    choose(id).then(
+      () => setState('saved'),
+      (err: unknown) => {
+        setMessage(errorMessage(err))
+        setState('error')
+      },
+    )
+  }
+
+  return (
+    <section className="card stack" aria-labelledby="theme-h">
+      <div className="spread">
+        <div>
+          <h2 id="theme-h" className="card-title">Theme</h2>
+          <p className="muted small">Choose the colours you like to study in. It is saved to your account, so it follows you to every device.</p>
+        </div>
+        {state === 'saved' && <span className="saved-note" role="status">Saved</span>}
+      </div>
+      {state === 'error' && <p className="alert alert-error" role="alert">{message}</p>}
+      <div className="theme-grid" role="radiogroup" aria-label="Colour theme">
+        {THEMES.map((t) => (
+          <label key={t.id} className={`theme-opt${t.id === theme ? ' is-selected' : ''}`} data-theme={t.id}>
+            <input type="radio" name="theme" value={t.id} checked={t.id === theme} onChange={() => pick(t.id)} />
+            <span className="theme-preview" aria-hidden="true">
+              <span className="tp-bar"><i /><b /><b /></span>
+              <span className="tp-card"><u /></span>
+              <span className="tp-row"><em /><em /></span>
+            </span>
+            <span className="theme-meta">
+              <span className="theme-name">{t.name}</span>
+              <span className="muted small">{t.note}</span>
+            </span>
+            <svg className="theme-check" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><circle cx="10" cy="10" r="10" fill="currentColor" /><path d="M5.5 10.3l3 3 6-6.6" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </label>
+        ))}
+      </div>
     </section>
   )
 }

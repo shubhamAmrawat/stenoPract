@@ -33,14 +33,14 @@ function TrendChart({ points }: { points: TrendPoint[] }) {
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Average error percentage per day" style={{ display: 'block' }}>
       {ticks.map((t) => (
         <g key={t}>
-          <line x1={padL} x2={W - padR} y1={y(t)} y2={y(t)} stroke="#e3e8f5" />
+          <line x1={padL} x2={W - padR} y1={y(t)} y2={y(t)} style={{ stroke: 'var(--border)' }} />
           <text x={padL - 8} y={y(t) + 4} textAnchor="end" fontSize="11" fill="#55628a">{Number.isInteger(t) ? t : t.toFixed(1)}%</text>
         </g>
       ))}
-      <path d={area} fill="rgba(79,70,229,0.10)" />
-      <path d={line} fill="none" stroke="#4f46e5" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+      <path d={area} style={{ fill: 'color-mix(in srgb, var(--primary) 10%, transparent)' }} />
+      <path d={line} fill="none" style={{ stroke: 'var(--primary)' }} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
       {points.map((p, i) => (
-        <circle key={p.date} cx={x(i)} cy={y(p.avgErrorPct)} r="4.5" fill="#fff" stroke="#4f46e5" strokeWidth="2.5">
+        <circle key={p.date} cx={x(i)} cy={y(p.avgErrorPct)} r="4.5" fill="#fff" style={{ stroke: 'var(--primary)' }} strokeWidth="2.5">
           <title>{`${label(p.date)}: ${p.avgErrorPct}% average error (${p.attempts} attempt${p.attempts === 1 ? '' : 's'})`}</title>
         </circle>
       ))}

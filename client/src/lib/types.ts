@@ -11,6 +11,8 @@ export interface User {
   phone: string | null
   gender: 'female' | 'male' | 'other' | 'prefer-not-to-say' | null
   bio: string | null
+  /** The colour theme the student chose, or null for the platform default. */
+  theme: string | null
   signInMethod: 'google' | 'password'
   memberSince: string | null
   /** The student has uploaded a photo of their own. */
