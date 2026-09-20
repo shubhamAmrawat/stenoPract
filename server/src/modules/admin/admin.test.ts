@@ -61,6 +61,35 @@ describe('sets and dictations', () => {
     expect(list[0].activeTextVersion).toBeNull();
   });
 
+  it('imports "Transcription No. N" titles that carry no speed, using the default speed the admin types', async () => {
+    const { agent } = await admin();
+    const set = (await agent.post('/api/v1/admin/sets').send({ slug: 'kc-23', title: 'KC 23' })).body.set;
+    const items = [
+      ['vid00000001', 'Transcription No. 485 | Kailash Chandra Shorthand Dictation | Shorthand'],
+      ['vid00000002', 'Transcription No. 486 | Kailash Chandra Shorthand Dictation | 90 WPM'],
+      ['vid00000003', 'Channel trailer'],
+    ].map(([videoId, title], position) => ({ snippet: { title, position, resourceId: { videoId } } }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ items }) }));
+    const url = `/api/v1/admin/sets/${set.id}/import-playlist`;
+
+    // Without a default speed the video with no speed in its title is skipped, with a reason that says what to do.
+    const first = await agent.post(url).send({ playlist: 'PLabcdefghij12345' });
+    expect(first.body).toMatchObject({ found: 3, created: 1, updated: 0, usedDefault: 0, exercises: [486] });
+    expect(first.body.skipped).toHaveLength(2);
+    expect(first.body.skipped[0].reason).toContain('no speed');
+    expect(first.body.skipped[1].reason).toContain('No exercise number');
+
+    // Typing a speed and importing again picks the rest up without duplicating anything.
+    const second = await agent.post(url).send({ defaultWpm: 100 });
+    expect(second.body).toMatchObject({ created: 1, updated: 1, usedDefault: 1, exercises: [485, 486] });
+    const list = (await agent.get(`/api/v1/admin/dictations?setId=${set.id}`)).body.items;
+    expect(list).toHaveLength(2);
+    const byNo = Object.fromEntries(list.map((d: { exerciseNo: number; videos: { baseWpm: number }[] }) => [d.exerciseNo, d.videos.map((v) => v.baseWpm)]));
+    expect(byNo).toEqual({ 485: [100], 486: [90] });
+
+    expect((await agent.post(url).send({ defaultWpm: 10 })).status).toBe(400);
+  });
+
   it('a YouTube failure is reported, not crashed on', async () => {
     const { agent } = await admin();
     const set = (await agent.post('/api/v1/admin/sets').send({ slug: 's', title: 'S' })).body.set;

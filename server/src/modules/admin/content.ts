@@ -7,7 +7,7 @@ import { idParam, objectId, parse } from '../../middleware/validate.js';
 import { Attempt, Dictation, DictationSet, DictationText, MasterWordStats, Report } from '../../models/index.js';
 import { evaluateAgainstMaster } from '../../services/attempts.js';
 import { importDictations, parseVideoLinks } from '../../services/contentImport.js';
-import { extractPlaylistId, fetchPlaylistVideos, parseVideoTitle } from '../../services/youtube.js';
+import { extractPlaylistId, fetchPlaylistVideos, MAX_WPM, MIN_WPM, parseVideoTitle } from '../../services/youtube.js';
 
 export const adminContentRouter = Router();
 
@@ -67,13 +67,21 @@ adminContentRouter.patch('/sets/:id', async (req, res) => {
 });
 
 /**
- * Reads the set's YouTube playlist and creates/updates one dictation per "Exercise N",
- * attaching each video with its base speed parsed from the title ("100 WPM | Exercise 507 | ...").
- * New dictations start unpublished and without a transcript.
+ * Reads the set's YouTube playlist and creates/updates one dictation per exercise number found in the
+ * titles ("Exercise 507", "Transcription No. 485", ...), attaching each video with its base speed. The speed
+ * comes from the title ("100 WPM"); when a title has none, `defaultWpm` (typed by the admin) is used.
+ * New dictations start unpublished and without a transcript. Running it again is safe: videos are matched
+ * by id, so nothing is duplicated.
  */
 adminContentRouter.post('/sets/:id/import-playlist', async (req, res) => {
   const { id } = parse(idParam, req.params);
-  const body = parse(z.object({ playlist: z.string().max(300).optional() }), req.body ?? {});
+  const body = parse(
+    z.object({
+      playlist: z.string().max(300).optional(),
+      defaultWpm: z.number().int().min(MIN_WPM).max(MAX_WPM).optional(),
+    }),
+    req.body ?? {},
+  );
   const set = await DictationSet.findById(id);
   if (!set) throw ApiError.notFound('Set not found');
 
@@ -88,30 +96,52 @@ adminContentRouter.post('/sets/:id/import-playlist', async (req, res) => {
 
   let created = 0;
   let updated = 0;
+  let usedDefault = 0;
+  const touched = new Set<number>();
   const skipped: { title: string; reason: string }[] = [];
 
   for (const v of videos) {
     const parsed = parseVideoTitle(v.title);
     if (!parsed) {
-      skipped.push({ title: v.title, reason: 'Could not read speed and exercise number from the title' });
+      skipped.push({ title: v.title, reason: 'No exercise number in the title (looking for "Exercise 12", "Transcription No. 12" or "Dictation No. 12")' });
       continue;
     }
-    const video = { youtubeVideoId: v.videoId, baseWpm: parsed.baseWpm, title: v.title };
-    const existing = await Dictation.findOne({ setId: set._id, exerciseNo: parsed.exerciseNo });
-    if (!existing) {
-      await Dictation.create({ setId: set._id, exerciseNo: parsed.exerciseNo, title: `Exercise ${parsed.exerciseNo}`, videos: [video] });
-      created++;
+    const baseWpm = parsed.baseWpm ?? body.defaultWpm ?? null;
+    if (baseWpm === null) {
+      skipped.push({ title: v.title, reason: `Exercise ${parsed.exerciseNo}: no speed in the title (like "100 WPM")` });
       continue;
     }
-    const videosNow = existing.videos.map((x) => ({ youtubeVideoId: x.youtubeVideoId, baseWpm: x.baseWpm, title: x.title ?? undefined }));
-    const idx = videosNow.findIndex((x) => x.youtubeVideoId === v.videoId || x.baseWpm === parsed.baseWpm);
-    if (idx >= 0) videosNow[idx] = video;
-    else videosNow.push(video);
-    existing.set('videos', videosNow);
-    await existing.save();
-    updated++;
+    if (parsed.baseWpm === null) usedDefault++;
+    const video = { youtubeVideoId: v.videoId, baseWpm, title: v.title.slice(0, 200) };
+    try {
+      const existing = await Dictation.findOne({ setId: set._id, exerciseNo: parsed.exerciseNo });
+      if (!existing) {
+        await Dictation.create({ setId: set._id, exerciseNo: parsed.exerciseNo, title: `Exercise ${parsed.exerciseNo}`, videos: [video] });
+        created++;
+      } else {
+        const videosNow = existing.videos.map((x) => ({ youtubeVideoId: x.youtubeVideoId, baseWpm: x.baseWpm, title: x.title ?? undefined }));
+        const idx = videosNow.findIndex((x) => x.youtubeVideoId === v.videoId || x.baseWpm === baseWpm);
+        if (idx >= 0) videosNow[idx] = video;
+        else videosNow.push(video);
+        existing.set('videos', videosNow);
+        await existing.save();
+        updated++;
+      }
+      touched.add(parsed.exerciseNo);
+    } catch (err) {
+      if (err instanceof ApiError) throw err;
+      skipped.push({ title: v.title, reason: `Exercise ${parsed.exerciseNo}: could not be saved (${err instanceof Error ? err.message : 'unknown error'})` });
+    }
   }
-  res.json({ playlistId, found: videos.length, created, updated, skipped });
+  res.json({
+    playlistId,
+    found: videos.length,
+    created,
+    updated,
+    usedDefault,
+    exercises: [...touched].sort((x, y) => x - y),
+    skipped,
+  });
 });
 
 // ---------- bulk import (JSON file / pasted video links) ----------

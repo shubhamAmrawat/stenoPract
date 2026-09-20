@@ -7,15 +7,40 @@ export interface PlaylistVideo {
   position: number;
 }
 
+export interface ParsedTitle {
+  exerciseNo: number;
+  /** null when the title does not state a speed (the admin can supply a default). */
+  baseWpm: number | null;
+}
+
+// "Exercise 507", "Transcription No. 485", "Transcript #12": a bare number after the word is fine.
+const STRONG_EXERCISE = /\b(?:exercise|transcription|transcript)\s*(?:no\.?|number|#)?\s*[:.-]?\s*(\d{1,5})(?!\d)(?!\s*-?\s*w\.?\s?p\.?\s?m)/i;
+// "Dictation No. 12", "Passage #7": here the marker is required, so "Shorthand Dictation 100 WPM" is not read as exercise 100.
+const WEAK_EXERCISE = /\b(?:dictation|passage)\s*(?:no\.?|number|#)\s*[:.-]?\s*(\d{1,5})(?!\d)(?!\s*-?\s*w\.?\s?p\.?\s?m)/i;
+// "100 WPM", "@100wpm", "100-wpm", "100 w.p.m", "100 words per minute"
+const SPEED = /(?<!\d)(\d{2,3})\s*(?:-?\s*w\.?\s?p\.?\s?m\b|words?\s*(?:per|a|\/)\s*min)/gi;
+
+export const MIN_WPM = 40;
+export const MAX_WPM = 200;
+
 /**
- * "100 WPM | Exercise 507 | Kailash Chandra Vol 24" -> { baseWpm: 100, exerciseNo: 507 }
- * Returns null when either number cannot be found.
+ * Reads an exercise number and (when present) a speed out of a video title:
+ *   "100 WPM | Exercise 507 | Kailash Chandra Vol 24"          -> { exerciseNo: 507, baseWpm: 100 }
+ *   "Transcription No. 485 | Kailash Chandra Shorthand Dictation" -> { exerciseNo: 485, baseWpm: null }
+ * Returns null only when no exercise number can be found. Speeds outside 40-200 are ignored.
  */
-export function parseVideoTitle(title: string): { baseWpm: number; exerciseNo: number } | null {
-  const wpm = title.match(/(\d{2,3})\s*-?\s*WPM/i);
-  const ex = title.match(/Exercise\s*(?:No\.?|Number|#)?\s*(\d{1,5})/i);
-  if (!wpm || !ex) return null;
-  return { baseWpm: Number(wpm[1]), exerciseNo: Number(ex[1]) };
+export function parseVideoTitle(title: string): ParsedTitle | null {
+  const ex = title.match(STRONG_EXERCISE) ?? title.match(WEAK_EXERCISE);
+  if (!ex) return null;
+  let baseWpm: number | null = null;
+  for (const m of title.matchAll(SPEED)) {
+    const n = Number(m[1]);
+    if (n >= MIN_WPM && n <= MAX_WPM) {
+      baseWpm = n;
+      break;
+    }
+  }
+  return { exerciseNo: Number(ex[1]), baseWpm };
 }
 
 interface PlaylistItemsResponse {
