@@ -52,14 +52,31 @@ export function osaDistance(a: string, b: string, max: number): number {
   return prev[lb]!;
 }
 
-/** master = attempt +/- s | es | (y -> ies) */
+/** Plurals that are not formed by adding -s/-es. Singular for plural (or the reverse) is a half mistake either way. */
+const IRREGULAR_PLURALS: readonly [string, string][] = [
+  ['child', 'children'], ['person', 'people'], ['foot', 'feet'], ['tooth', 'teeth'], ['mouse', 'mice'], ['goose', 'geese'], ['ox', 'oxen'],
+  ['criterion', 'criteria'], ['phenomenon', 'phenomena'], ['datum', 'data'], ['medium', 'media'], ['curriculum', 'curricula'],
+  ['memorandum', 'memoranda'], ['bacterium', 'bacteria'], ['stimulus', 'stimuli'], ['alumnus', 'alumni'], ['formula', 'formulae'],
+  ['analysis', 'analyses'], ['basis', 'bases'], ['crisis', 'crises'], ['hypothesis', 'hypotheses'], ['thesis', 'theses'],
+  ['index', 'indices'], ['appendix', 'appendices'],
+];
+const IRREGULAR = new Map<string, string>();
+for (const [one, many] of IRREGULAR_PLURALS) {
+  IRREGULAR.set(one, many);
+  IRREGULAR.set(many, one);
+}
+
+/** master = attempt +/- s | es | (y -> ies) | (f/fe -> ves) | (-man -> -men) | a listed irregular pair */
 function isPluralPair(m: string, a: string): boolean {
+  if (IRREGULAR.get(m) === a) return true;
+  if (m.length >= 3 && a.length === m.length && ((m.endsWith('man') && a === m.slice(0, -3) + 'men') || (m.endsWith('men') && a === m.slice(0, -3) + 'man'))) return true;
   const diff = m.length - a.length;
   if (diff === 0 || diff > 3 || diff < -3) return false;
   const [short, long] = diff < 0 ? [m, a] : [a, m];
   if (short.length < 3) return false;
   if (long === short + 's' || long === short + 'es') return true;
-  return short.endsWith('y') && long === short.slice(0, -1) + 'ies';
+  if (short.endsWith('y') && long === short.slice(0, -1) + 'ies') return true;
+  return (short.endsWith('f') && long === short.slice(0, -1) + 'ves') || (short.endsWith('fe') && long === short.slice(0, -2) + 'ves');
 }
 
 function isNearSpelling(m: string, a: string): boolean {

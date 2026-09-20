@@ -36,11 +36,11 @@ export function DictationPage() {
   const [profile, setProfile] = useState(user?.settings.examProfile ?? 'SSC_C')
   const [category, setCategory] = useState<Category>(user?.settings.category ?? 'general')
   const [reporting, setReporting] = useState(false)
-  const [showTranscript, setShowTranscript] = useState(false)
+  const [tab, setTab] = useState<'start' | 'transcript'>('start')
   const setsQ = useQuery({ queryKey: ['sets'], queryFn: () => api<{ items: DictationSet[] }>('/sets').then((r) => r.items) })
   const transcriptQ = useQuery({
     queryKey: ['transcript', id],
-    enabled: showTranscript,
+    enabled: tab === 'transcript',
     staleTime: 5 * 60_000,
     queryFn: () => api<TranscriptResponse>(`/dictations/${id}/transcript`),
   })
@@ -108,80 +108,89 @@ export function DictationPage() {
                   <div className="tip">Tip: slow the video down while you are learning a passage, then work back up to the exam speed ({d.videos[0]?.baseWpm ?? 100} wpm).</div>
                 </>
               )}
-
-              <section className="card card-flat transcript" aria-label="Transcript">
-                <div className="spread">
-                  <div>
-                    <h3>Transcript</h3>
-                    <p className="muted small">Try writing it yourself first, then use this to check your notes.</p>
-                  </div>
-                  <button className="btn btn-ghost btn-sm" aria-expanded={showTranscript} onClick={() => setShowTranscript((v) => !v)}>
-                    {showTranscript ? 'Hide transcript' : 'Show transcript'}
-                  </button>
-                </div>
-                {showTranscript && (
-                  transcriptQ.isPending ? <Spinner /> : transcriptQ.error ? <ErrorState error={transcriptQ.error} onRetry={() => void transcriptQ.refetch()} /> : (
-                    <div className="transcript-body">
-                      <div className="muted small">{transcriptQ.data.wordCount} words</div>
-                      {transcriptQ.data.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
-                    </div>
-                  )
-                )}
-              </section>
             </>
           )}
         </div>
 
-        <aside className="stack">
-          <div className="card stack">
-            <h2>Ready to type?</h2>
-            <div className="field">
-              <label className="label" htmlFor="profile">Exam</label>
-              <select id="profile" className="select" value={profile} onChange={(e) => setProfile(e.target.value)} disabled={hasDraft}>
-                {(profilesQ.data ?? []).map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <span className="label">Category</span>
-              <div className="segmented" role="group" aria-label="Category">
-                <button aria-pressed={category === 'general'} onClick={() => setCategory('general')} disabled={hasDraft}>General</button>
-                <button aria-pressed={category === 'reserved'} onClick={() => setCategory('reserved')} disabled={hasDraft}>Reserved</button>
+        <aside className="card side-card">
+          <div className="side-tabs" role="tablist" aria-label="Before you start">
+            <button role="tab" id="tab-start" aria-selected={tab === 'start'} aria-controls="pane-start" onClick={() => setTab('start')}>Ready to type</button>
+            <button role="tab" id="tab-transcript" aria-selected={tab === 'transcript'} aria-controls="pane-transcript" onClick={() => setTab('transcript')}>Transcript</button>
+          </div>
+
+          <div className="side-body">
+            {/* Both panes stay mounted: the hidden one keeps the card the same height, so switching tabs never moves the page. */}
+            <div id="pane-start" role="tabpanel" aria-labelledby="tab-start" className="side-pane stack" style={tab === 'start' ? undefined : { visibility: 'hidden' }} aria-hidden={tab !== 'start'}>
+              <div className="field">
+                <label className="label" htmlFor="profile">Exam</label>
+                <select id="profile" className="select" value={profile} onChange={(e) => setProfile(e.target.value)} disabled={hasDraft}>
+                  {(profilesQ.data ?? []).map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
+                </select>
               </div>
+              <div className="field">
+                <span className="label row" style={{ gap: 6 }}>
+                  Category
+                  <InfoTip label="What the category means">
+                    <b>It only changes the pass mark.</b> {chosenProfile
+                      ? <>For {chosenProfile.name}, general (unreserved) candidates may make up to {chosenProfile.limits.general}% mistakes and reserved-category candidates up to {chosenProfile.limits.reserved}%.</>
+                      : 'General (unreserved) candidates get a stricter mistake limit than reserved-category candidates.'} Pick the one that applies to you; you can change it any time.
+                  </InfoTip>
+                </span>
+                <div className="segmented" role="group" aria-label="Category">
+                  <button aria-pressed={category === 'general'} onClick={() => setCategory('general')} disabled={hasDraft}>General</button>
+                  <button aria-pressed={category === 'reserved'} onClick={() => setCategory('reserved')} disabled={hasDraft}>Reserved</button>
+                </div>
+              </div>
+              {chosenProfile && !hasDraft && (
+                <div className="muted small">
+                  {chosenProfile.durationMin} minutes to transcribe · pass at {chosenProfile.limits[category]}% error or less
+                  {!chosenProfile.verifiedAgainstNotice && ' (limit not yet verified against the latest SSC notice)'}
+                </div>
+              )}
+              {hasDraft && <div className="alert alert-info">You have an unfinished attempt. Resuming keeps your timer and text.</div>}
+              {start.error && <div className="alert alert-error">{errorMessage(start.error)}</div>}
             </div>
-            {chosenProfile && !hasDraft && (
-              <div className="muted small">
-                {chosenProfile.durationMin} minutes to transcribe · pass at {chosenProfile.limits[category]}% error or less
-                {!chosenProfile.verifiedAgainstNotice && ' (limit not yet verified against the latest SSC notice)'}
+
+            {tab === 'transcript' && (
+              <div id="pane-transcript" role="tabpanel" aria-labelledby="tab-transcript" className="side-pane side-scroll">
+                <p className="muted small">Try writing it yourself first, then use this to check your notes.</p>
+                {transcriptQ.isPending ? <Spinner /> : transcriptQ.error ? <ErrorState error={transcriptQ.error} onRetry={() => void transcriptQ.refetch()} /> : (
+                  <div className="transcript-text">
+                    <div className="muted small">{transcriptQ.data.wordCount} words</div>
+                    {transcriptQ.data.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
+                  </div>
+                )}
               </div>
             )}
-            {hasDraft && <div className="alert alert-info">You have an unfinished attempt. Resuming keeps your timer and text.</div>}
-            {start.error && <div className="alert alert-error">{errorMessage(start.error)}</div>}
+          </div>
+
+          <div className="side-foot">
             <button className="btn btn-accent btn-lg" disabled={!d.ready || start.isPending} onClick={() => start.mutate(problem ? undefined : (effectiveWpm ?? undefined))}>
               {start.isPending ? 'Starting…' : hasDraft ? 'Resume typing' : 'Transcribe now →'}
             </button>
             <p className="muted small">The timer starts as soon as you press the button.</p>
           </div>
-
-          <div className="card stack card-flat">
-            <div className="spread">
-              <h3>Your attempts</h3>
-              {progressQ.data && progressQ.data.attempts.length > 0 && <span className="badge badge-ok">Best {formatPct(progressQ.data.bestErrorPct)}</span>}
-            </div>
-            {progressQ.isPending ? <Spinner /> : progressQ.data && progressQ.data.attempts.length > 0 ? (
-              <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} className="stack">
-                {[...progressQ.data.attempts].reverse().slice(0, 5).map((a) => (
-                  <li key={a.id} className="spread small">
-                    <span className="muted">{formatDate(a.submittedAt)}</span>
-                    <span><b>{formatPct(a.errorPct)}</b> · <Link to={`/attempts/${a.id}`}>view</Link></span>
-                  </li>
-                ))}
-              </ul>
-            ) : <p className="muted small">No attempts yet.</p>}
-          </div>
-
-          <button className="btn btn-ghost btn-sm" onClick={() => setReporting(true)}>Report a problem with this video</button>
         </aside>
       </div>
+
+      <section className="card card-flat attempts-strip" aria-label="Your attempts">
+        <div className="attempts-head">
+          <h3>Your attempts</h3>
+          {progressQ.data && progressQ.data.attempts.length > 0 && <span className="badge badge-ok">Best {formatPct(progressQ.data.bestErrorPct)}</span>}
+        </div>
+        {progressQ.isPending ? <Spinner /> : progressQ.data && progressQ.data.attempts.length > 0 ? (
+          <ul className="attempt-chips">
+            {[...progressQ.data.attempts].reverse().slice(0, 5).map((a) => (
+              <li key={a.id}>
+                <span className="muted small">{formatDate(a.submittedAt)}</span>
+                <b>{formatPct(a.errorPct)}</b>
+                <Link to={`/attempts/${a.id}`} className="small">view</Link>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="muted small">No attempts yet.</p>}
+        <button className="btn btn-ghost btn-sm attempts-report" onClick={() => setReporting(true)}>Report a problem with this video</button>
+      </section>
 
       {reporting && <ReportModal dictationId={d.id} kind="video_issue" onClose={() => setReporting(false)} />}
     </div>

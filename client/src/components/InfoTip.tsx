@@ -1,10 +1,25 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 
 /** A small "i" button that opens a short explanation. Click, tap or press Enter; Escape or clicking elsewhere closes it. */
 export function InfoTip({ label, children }: { label: string; children: ReactNode }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLSpanElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
+  const [shift, setShift] = useState(0)
   const id = useId()
+
+  // Keep the bubble inside the screen: on a phone the button can sit far enough right that the bubble would run off the edge.
+  useLayoutEffect(() => {
+    if (!open) return
+    const el = popRef.current
+    if (!el) return
+    setShift(0)
+    const margin = 12
+    const { left, right } = el.getBoundingClientRect()
+    const vw = document.documentElement.clientWidth
+    if (right > vw - margin) setShift(vw - margin - right)
+    else if (left < margin) setShift(margin - left)
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -26,7 +41,7 @@ export function InfoTip({ label, children }: { label: string; children: ReactNod
         i
       </button>
       {open && (
-        <div id={id} role="note" className="infotip-pop">
+        <div id={id} ref={popRef} role="note" className="infotip-pop" style={{ transform: `translateX(${shift}px)`, ...({ '--arrow-shift': `${-shift}px` } as CSSProperties) }}>
           {children}
         </div>
       )}

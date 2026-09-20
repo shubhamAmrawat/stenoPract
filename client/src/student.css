@@ -55,7 +55,7 @@
 .infotip-btn { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--primary); background: #fff; color: var(--primary); font: italic 700 0.8rem/1 Georgia, serif; cursor: pointer; display: grid; place-items: center; padding: 0; }
 .infotip-btn:hover, .infotip-btn[aria-expanded='true'] { background: var(--primary); color: #fff; }
 .infotip-pop { position: absolute; left: -8px; top: calc(100% + 10px); z-index: 20; width: min(320px, 78vw); background: #12204a; color: #eef1ff; border-radius: 14px; padding: 12px 14px; font-size: 0.86rem; line-height: 1.5; box-shadow: var(--shadow-lg); }
-.infotip-pop::before { content: ''; position: absolute; left: 14px; top: -6px; width: 12px; height: 12px; background: #12204a; transform: rotate(45deg); }
+.infotip-pop::before { content: ''; position: absolute; left: calc(14px + var(--arrow-shift, 0px)); top: -6px; width: 12px; height: 12px; background: #12204a; transform: rotate(45deg); }
 .transcript { display: flex; flex-direction: column; gap: 14px; }
 .transcript-body { display: flex; flex-direction: column; gap: 14px; border-top: 1px solid var(--border); padding-top: 14px; max-height: 420px; overflow: auto; font-size: 1.02rem; line-height: 1.8; }
 
