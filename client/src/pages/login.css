@@ -5,7 +5,7 @@
 /* ---- Brand side ---- */
 .auth-brand {
   position: relative; overflow: hidden; color: #fff; padding: 44px 56px; display: flex; flex-direction: column; justify-content: space-between; gap: 36px;
-  background: radial-gradient(760px 420px at 100% 0%, rgba(255, 122, 89, 0.36), transparent 62%), radial-gradient(600px 400px at 0% 100%, rgba(124, 116, 255, 0.35), transparent 60%), linear-gradient(140deg, #12204a 0%, #2f2a9e 58%, #4f46e5 100%);
+  background: radial-gradient(760px 420px at 100% 0%, color-mix(in srgb, var(--h-sun) 30%, transparent), transparent 62%), radial-gradient(600px 400px at 0% 100%, color-mix(in srgb, var(--primary) 45%, transparent), transparent 60%), linear-gradient(140deg, var(--h-deep-1) 0%, var(--h-deep-2) 58%, var(--primary) 100%);
 }
 .auth-brand::before {
   content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.5;

@@ -1,0 +1,65 @@
+/* Colour themes.
+   The student picks one on the Profile page. It is stored on their account and applied as
+   <html data-theme="...">. Every palette sets the same list of variables, and the rest of the CSS only ever
+   reads variables. The selector is [data-theme] (not :root[data-theme]) so the theme picker's preview tiles can
+   carry the attribute and paint themselves in their own colours.
+   The five --h-c1..5 values are book-cover colours: shades of the theme itself, so covers never clash with it.
+   Keep the ids in step with client/src/lib/themes.ts and server/src/models/User.ts. */
+
+/* Without a theme (login screen, admin console) the platform's original indigo applies. */
+:root {
+  --bg: #f6f8ff; --ink: #12204a; --muted: #55628a; --border: #e3e8f5;
+  --primary: #4f46e5; --primary-hover: #4338ca; --info-bg: #e0e7ff; --info-ink: #3730a3; --tint: #eef1fb;
+  --h-accent-soft: #eef0ff; --h-deep-1: #171e63; --h-deep-2: #2a2f9c;
+  --h-sun: #ffd66b; --h-sun-deep: #f5b83d; --h-sun-soft: #fff3cf; --h-sun-ink: #b7791f;
+  --h-c1: #1a2170; --h-c2: #2a2f9c; --h-c3: #3730a3; --h-c4: #4338ca; --h-c5: #312e81;
+}
+
+[data-theme='teal'] {
+  --bg: #f1f8fa; --ink: #0b2a37; --muted: #4b6b79; --border: #d8e8ee;
+  --primary: #0e7490; --primary-hover: #0b5f76; --info-bg: #d9f0f6; --info-ink: #0b5568; --tint: #e6f2f5;
+  --h-accent-soft: #def2f7; --h-deep-1: #0a3550; --h-deep-2: #0e6f8a;
+  --h-sun: #ffb48a; --h-sun-deep: #ff8f5a; --h-sun-soft: #ffe6d8; --h-sun-ink: #c2410c;
+  --h-c1: #0a3550; --h-c2: #0e6f8a; --h-c3: #0e7490; --h-c4: #115e59; --h-c5: #164e63;
+}
+
+[data-theme='forest'] {
+  --bg: #f3f8f4; --ink: #10281f; --muted: #4c6a5d; --border: #d9e6dd;
+  --primary: #0f7a55; --primary-hover: #0b6546; --info-bg: #ddf1e5; --info-ink: #0b5a3e; --tint: #e8f1ea;
+  --h-accent-soft: #e2f3e8; --h-deep-1: #0d3b2c; --h-deep-2: #16684c;
+  --h-sun: #ffd166; --h-sun-deep: #f4b942; --h-sun-soft: #fff1c9; --h-sun-ink: #a16207;
+  --h-c1: #0d3b2c; --h-c2: #16684c; --h-c3: #166534; --h-c4: #115e59; --h-c5: #14532d;
+}
+
+[data-theme='sky'] {
+  --bg: #f2f8fd; --ink: #0c2340; --muted: #4a6482; --border: #dbe7f3;
+  --primary: #0284c7; --primary-hover: #0369a1; --info-bg: #dbeefc; --info-ink: #075985; --tint: #e8f1fa;
+  --h-accent-soft: #e0f0fc; --h-deep-1: #0a3763; --h-deep-2: #0c66b0;
+  --h-sun: #ffd166; --h-sun-deep: #f4b942; --h-sun-soft: #fff1c9; --h-sun-ink: #a16207;
+  --h-c1: #0a3763; --h-c2: #0c66b0; --h-c3: #0369a1; --h-c4: #1e40af; --h-c5: #075985;
+}
+
+[data-theme='slate'] {
+  --bg: #f6f7f8; --ink: #17202a; --muted: #5a6672; --border: #e1e5e9;
+  --primary: #059669; --primary-hover: #047857; --info-bg: #d9f4e8; --info-ink: #065f46; --tint: #eceff2;
+  --h-accent-soft: #dcf5ea; --h-deep-1: #16202b; --h-deep-2: #2a3b4d;
+  --h-sun: #6ee7b7; --h-sun-deep: #34d399; --h-sun-soft: #d6f7e8; --h-sun-ink: #047857;
+  --h-c1: #16202b; --h-c2: #2a3b4d; --h-c3: #334155; --h-c4: #1e293b; --h-c5: #3b4a5c;
+}
+
+[data-theme='plum'] {
+  --bg: #fdf6f3; --ink: #2b1633; --muted: #6d5673; --border: #f0e0dc;
+  --primary: #e8590c; --primary-hover: #c94a08; --info-bg: #ffe8d9; --info-ink: #9a3a0a; --tint: #fbece6;
+  --h-accent-soft: #ffe9dc; --h-deep-1: #351a47; --h-deep-2: #5b2a78;
+  --h-sun: #ffd166; --h-sun-deep: #f4b942; --h-sun-soft: #fff1c9; --h-sun-ink: #a16207;
+  --h-c1: #351a47; --h-c2: #5b2a78; --h-c3: #4a1d5c; --h-c4: #6b2d8f; --h-c5: #7a2551;
+}
+
+[data-theme='indigo'] {
+  --bg: #f6f8ff; --ink: #12204a; --muted: #55628a; --border: #e3e8f5;
+  --primary: #4f46e5; --primary-hover: #4338ca; --info-bg: #e0e7ff; --info-ink: #3730a3; --tint: #eef1fb;
+  --h-accent-soft: #eef0ff; --h-deep-1: #171e63; --h-deep-2: #2a2f9c;
+  --h-sun: #ffd66b; --h-sun-deep: #f5b83d; --h-sun-soft: #fff3cf; --h-sun-ink: #b7791f;
+  --h-c1: #1a2170; --h-c2: #2a2f9c; --h-c3: #3730a3; --h-c4: #4338ca; --h-c5: #312e81;
+}
+

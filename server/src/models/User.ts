@@ -1,5 +1,9 @@
 import { Schema, model, type InferSchemaType } from 'mongoose';
 
+/** Colour themes a student can pick on the Profile page. Keep in step with client/src/lib/themes.ts. */
+export const THEMES = ['teal', 'forest', 'sky', 'slate', 'plum', 'indigo'] as const;
+export type ThemeId = (typeof THEMES)[number];
+
 const userSchema = new Schema(
   {
     /** Set for accounts that signed in with Google (Google has verified the email). Password-only accounts have none. */
@@ -18,6 +22,8 @@ const userSchema = new Schema(
     phone: String,
     gender: { type: String, enum: ['female', 'male', 'other', 'prefer-not-to-say'] },
     bio: { type: String, maxlength: 200 },
+    /** The colour theme the student chose. Unset means the platform default. */
+    theme: { type: String, enum: THEMES },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     active: { type: Boolean, default: true },
     settings: {

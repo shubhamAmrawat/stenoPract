@@ -54,7 +54,7 @@ export function AnalysisPage() {
 
       <section className="card">
         <div className="result-hero">
-          <div className="ring" style={{ background: `conic-gradient(${ringColor} ${accuracy * 3.6}deg, #eef1fb 0)` }} role="img" aria-label={`Accuracy ${formatPct(accuracy)}`}>
+          <div className="ring" style={{ background: `conic-gradient(${ringColor} ${accuracy * 3.6}deg, var(--tint) 0)` }} role="img" aria-label={`Accuracy ${formatPct(accuracy)}`}>
             <div>
               <div className="big" style={{ color: verdictColor }}>{formatPct(r.errorPct)}</div>
               <div className="muted small">error</div>

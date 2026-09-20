@@ -5,6 +5,7 @@ import { ApiError } from '../../middleware/errors.js';
 import { avatarLimiter } from '../../middleware/security.js';
 import { parse } from '../../middleware/validate.js';
 import { User } from '../../models/index.js';
+import { THEMES } from '../../models/User.js';
 import { AVATAR_CONTENT_TYPE, AVATAR_INPUT_TYPES, AVATAR_MAX_BYTES, processAvatar } from '../../services/avatar.js';
 import { getStorage } from '../../services/storage.js';
 import { publicUser } from '../auth/routes.js';
@@ -30,6 +31,7 @@ const profileBody = z
     phone: phoneSchema,
     gender: z.enum(['female', 'male', 'other', 'prefer-not-to-say', '']),
     bio: z.string().trim().max(200, 'Keep your bio under 200 characters'),
+    theme: z.enum(THEMES),
   })
   .partial()
   .refine((b) => Object.keys(b).length > 0, 'Nothing to update');
@@ -43,6 +45,7 @@ profileRouter.patch('/me/profile', async (req, res) => {
     set.name = b.name;
     set.nameCustomised = true;
   }
+  if (b.theme !== undefined) set.theme = b.theme;
   for (const field of ['phone', 'gender', 'bio'] as const) {
     if (b[field] === undefined) continue;
     if (b[field] === '') unset[field] = 1;

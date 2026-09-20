@@ -6,6 +6,7 @@ import App from './App'
 import { AuthProvider } from './auth/AuthContext'
 import { ApiError } from './lib/api'
 import './styles.css'
+import './theme.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {

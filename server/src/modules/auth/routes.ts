@@ -23,6 +23,7 @@ interface UserLike {
   phone?: string | null;
   gender?: string | null;
   bio?: string | null;
+  theme?: string | null;
   createdAt?: Date | null;
   role?: string | null;
   settings?: { examProfile?: string | null; category?: string | null } | null;
@@ -48,6 +49,8 @@ export function publicUser(u: UserLike) {
     phone: u.phone ?? null,
     gender: u.gender ?? null,
     bio: u.bio ?? null,
+    /** The student's chosen colour theme, or null to use the platform default. */
+    theme: u.theme ?? null,
     signInMethod: u.googleId ? 'google' : 'password',
     memberSince: u.createdAt ? u.createdAt.toISOString() : null,
     /** Whether the student has a photo of their own (so "Remove photo" makes sense). */
