@@ -342,3 +342,33 @@ button { font: inherit; color: inherit; }
 .countdown-num { position: relative; font-family: var(--font-head); font-weight: 800; font-size: 3.6rem; line-height: 1; color: var(--primary); font-variant-numeric: tabular-nums; animation: countdown-pop 0.3s ease-out; }
 @keyframes countdown-drain { from { stroke-dashoffset: var(--from); } to { stroke-dashoffset: var(--to); } }
 @keyframes countdown-pop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* ---------- Side by side comparison (analysis page) ---------- */
+.cmp { display: grid; gap: 16px; }
+.cmp-panel { position: sticky; top: 72px; z-index: 5; display: grid; gap: 10px; padding: 12px 14px; background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
+.cmp-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cmp-count { font-variant-numeric: tabular-nums; margin-right: auto; }
+.cmp-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 0.88rem; font-weight: 600; cursor: pointer; user-select: none; }
+.cmp-switch input { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
+.cmp-info { display: grid; gap: 4px; min-height: 3.1em; font-size: 0.92rem; align-content: center; }
+.cmp-link { border: 0; background: none; padding: 0; font: inherit; color: var(--primary); text-decoration: underline; cursor: pointer; }
+.cmp-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; }
+.cmp-short { font-weight: 600; }
+.cmp-foot .cmp-link { margin-left: auto; text-align: right; }
+.cmp-legend { display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.78rem; }
+.cmp-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 32px; }
+.cmp-col h3 { margin-bottom: 8px; }
+.cmp-text { margin: 0; font-size: 1.02rem; line-height: 2.05; }
+.cmp-para { display: block; height: 0.8em; }
+.cmp-w { border-radius: 6px; padding: 1px 3px; transition: box-shadow 0.15s, opacity 0.2s; }
+.cmp-btn { border: 0; font: inherit; color: inherit; background: none; cursor: pointer; }
+.cmp-full { background: var(--full-bg); color: var(--full-ink); }
+.cmp-half { background: var(--half-bg); color: var(--half-ink); }
+.cmp-sub { text-decoration: underline wavy; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.cmp-add { background: var(--add-bg); color: var(--add-ink); }
+.cmp-fix { background: var(--ok-bg); color: var(--ok-ink); }
+.cmp-miss { background: var(--full-bg); color: var(--full-ink); border: 1px dashed #f0a3b5; }
+.cmp-ghost { color: var(--muted); border: 1px dashed var(--border); background: var(--tint); font-style: italic; opacity: 0.85; }
+.cmp-btn:hover, .cmp-btn:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 35%, transparent); outline: none; }
+.cmp-btn.is-active { box-shadow: 0 0 0 2px var(--primary), 0 4px 12px color-mix(in srgb, var(--primary) 25%, transparent); position: relative; z-index: 1; }
+.cmp-focus .cmp-ok { opacity: 0.3; }
