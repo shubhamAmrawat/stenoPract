@@ -1,10 +1,11 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useAuth } from '../auth/AuthContext'
 import { ExerciseRail, RailHandle, RailToggle } from '../components/ExerciseRail'
 import { InfoTip } from '../components/InfoTip'
 import { ReportModal } from '../components/ReportModal'
+import { StartInfoModal } from '../components/StartInfoModal'
 import { ErrorState, Spinner } from '../components/ui'
 import { YouTubePlayer, type PlayerProblem } from '../components/YouTubePlayer'
 import { api, errorMessage, qs } from '../lib/api'
@@ -64,6 +65,7 @@ export function DictationPage() {
 function DictationView({ id, showToggle, railOpen, onToggleRail }: { id: string; showToggle: boolean; railOpen: boolean; onToggleRail: () => void }) {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const qc = useQueryClient()
 
   const dictQ = useQuery(dictationQuery(id))
   const profilesQ = useExamProfiles()
@@ -77,6 +79,7 @@ function DictationView({ id, showToggle, railOpen, onToggleRail }: { id: string;
   const [profile, setProfile] = useState(user?.settings.examProfile ?? 'SSC_C')
   const [category, setCategory] = useState<Category>(user?.settings.category ?? 'general')
   const [reporting, setReporting] = useState(false)
+  const [showStart, setShowStart] = useState(false)
   const [tab, setTab] = useState<'start' | 'transcript'>('start')
   const setsQ = useQuery({ queryKey: ['sets'], queryFn: () => api<{ items: DictationSet[] }>('/sets').then((r) => r.items) })
   const transcriptQ = useQuery({
@@ -89,18 +92,27 @@ function DictationView({ id, showToggle, railOpen, onToggleRail }: { id: string;
   const start = useMutation({
     mutationFn: (listenedWpm: number | undefined) =>
       api<{ attempt: Attempt }>(`/dictations/${id}/attempts`, { method: 'POST', body: { examProfile: profile, category, listenedWpm } }),
-    onSuccess: (r) => navigate(`/attempts/${r.attempt.id}/write`),
+    onSuccess: (r) => {
+      // The draft now exists and the exercise counts as seen: refresh both so coming back shows "Resume typing".
+      void qc.invalidateQueries({ queryKey: ['attempts'] })
+      void qc.invalidateQueries({ queryKey: ['dictation', id] })
+      void qc.invalidateQueries({ queryKey: ['rail'] })
+      navigate(`/attempts/${r.attempt.id}/write`)
+    },
   })
 
   const video = dictQ.data?.videos[videoIdx]
   const selectableRates = useMemo(() => rates.filter((r) => r >= 0.5 && r <= 1.5), [rates])
   const effectiveWpm = video ? Math.round(video.baseWpm * rate) : null
   const chosenProfile = profilesQ.data?.find((p) => p.code === profile)
+  const beginAttempt = () => start.mutate(problem ? undefined : (effectiveWpm ?? undefined))
 
   if (dictQ.isPending) return <Spinner full />
   if (dictQ.error) return <ErrorState error={dictQ.error} onRetry={() => void dictQ.refetch()} />
   const d = dictQ.data
   const hasDraft = (draftQ.data?.items.length ?? 0) > 0
+  // Been here before (started and retook, or submitted): the button offers a retake instead of a first start.
+  const hasStarted = d.state.seen || d.state.attemptsCount > 0
 
   return (
     <div className="dict-view stack-lg">
@@ -210,10 +222,19 @@ function DictationView({ id, showToggle, railOpen, onToggleRail }: { id: string;
           </div>
 
           <div className="side-foot">
-            <button className="btn btn-accent btn-lg" disabled={!d.ready || start.isPending} onClick={() => start.mutate(problem ? undefined : (effectiveWpm ?? undefined))}>
-              {start.isPending ? 'Starting…' : hasDraft ? 'Resume typing' : 'Transcribe now →'}
+            {/* Resume goes straight to the typing screen (its timer is already running). A fresh start or a retake shows the info modal first. */}
+            <button
+              className="btn btn-accent btn-lg"
+              disabled={!d.ready || start.isPending || draftQ.isPending}
+              onClick={() => {
+                if (hasDraft) return beginAttempt()
+                start.reset()
+                setShowStart(true)
+              }}
+            >
+              {start.isPending ? 'Starting…' : hasDraft ? 'Resume typing' : hasStarted ? 'Retake again →' : 'Transcribe now →'}
             </button>
-            <p className="muted small">The timer starts as soon as you press the button.</p>
+            <p className="muted small">{hasDraft ? 'Your timer is already running.' : 'Your timer starts after a 5-second countdown.'}</p>
           </div>
         </aside>
       </div>
@@ -243,6 +264,17 @@ function DictationView({ id, showToggle, railOpen, onToggleRail }: { id: string;
         )}
       </section>
       </div>
+
+      {showStart && (
+        <StartInfoModal
+          isRetake={hasStarted}
+          durationMin={chosenProfile?.durationMin}
+          busy={start.isPending}
+          error={start.error ? errorMessage(start.error) : null}
+          onStart={beginAttempt}
+          onCancel={() => setShowStart(false)}
+        />
+      )}
 
       {reporting && <ReportModal dictationId={d.id} kind="video_issue" onClose={() => setReporting(false)} />}
     </div>

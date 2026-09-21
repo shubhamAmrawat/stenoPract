@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { Modal, Spinner, ErrorState } from '../components/ui'
 import { api, errorMessage } from '../lib/api'
 import { countWords, formatClock } from '../lib/format'
@@ -16,6 +17,7 @@ function Editor({ attempt }: { attempt: Attempt }) {
   const [savedText, setSavedText] = useState(attempt.typedText)
   const [saveError, setSaveError] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [retaking, setRetaking] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   const [timeUp, setTimeUp] = useState(false)
 
@@ -44,6 +46,8 @@ function Editor({ attempt }: { attempt: Attempt }) {
       void qc.invalidateQueries({ queryKey: ['attempt', attempt.id] })
       void qc.invalidateQueries({ queryKey: ['attempts'] })
       void qc.invalidateQueries({ queryKey: ['dictations'] })
+      void qc.invalidateQueries({ queryKey: ['dictation', attempt.dictationId] })
+      void qc.invalidateQueries({ queryKey: ['rail'] })
       void qc.invalidateQueries({ queryKey: ['sets'] })
       void qc.invalidateQueries({ queryKey: ['progress'] })
       void qc.invalidateQueries({ queryKey: ['analytics'] })
@@ -58,6 +62,7 @@ function Editor({ attempt }: { attempt: Attempt }) {
     if (submittingRef.current) return
     submittingRef.current = true
     setConfirming(false)
+    setRetaking(false)
     finish.mutate(auto)
   }
 
@@ -95,8 +100,14 @@ function Editor({ attempt }: { attempt: Attempt }) {
 
   const discard = useMutation({
     mutationFn: () => api(`/attempts/${attempt.id}`, { method: 'DELETE' }),
-    onSuccess: () => {
+    onSuccess: async () => {
       void qc.invalidateQueries({ queryKey: ['attempts'] })
+      void qc.invalidateQueries({ queryKey: ['rail'] })
+      // Refetch (even though the dictation page is not mounted) before leaving, so it opens with "Retake again" and no stale "Resume typing".
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['attempts', 'draft', attempt.dictationId], refetchType: 'all' }),
+        qc.invalidateQueries({ queryKey: ['dictation', attempt.dictationId], refetchType: 'all' }),
+      ])
       navigate(`/d/${attempt.dictationId}`, { replace: true })
     },
   })
@@ -113,7 +124,7 @@ function Editor({ attempt }: { attempt: Attempt }) {
             <div style={{ fontWeight: 700 }}>{countWords(text)} words</div>
             <div className={`small ${saveError ? '' : 'muted'}`} style={saveError ? { color: 'var(--full-ink)' } : undefined} aria-live="polite">{status}</div>
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={() => { if (window.confirm('Discard this attempt and start over later?')) discard.mutate() }} disabled={finish.isPending}>Retake</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setRetaking(true)} disabled={finish.isPending}>Retake</button>
           <button className="btn btn-primary" onClick={() => setConfirming(true)} disabled={finish.isPending}>{finish.isPending ? 'Submitting…' : 'Submit'}</button>
         </div>
       </div>
@@ -141,6 +152,31 @@ function Editor({ attempt }: { attempt: Attempt }) {
           readOnly={finish.isPending}
         />
       </div>
+
+      {retaking && (
+        <ConfirmDialog
+          title="Retake this dictation?"
+          tone="danger"
+          icon={
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12a9 9 0 1 0 3-6.7" />
+              <path d="M3 4v5h5" />
+            </svg>
+          }
+          cancelLabel="Keep typing"
+          confirmLabel="Yes, retake"
+          busyLabel="Discarding…"
+          busy={discard.isPending}
+          error={discard.error ? errorMessage(discard.error) : null}
+          onCancel={() => { setRetaking(false); discard.reset() }}
+          onConfirm={() => discard.mutate()}
+        >
+          <p>
+            This discards your current attempt{countWords(text) > 0 ? <> and the <b>{countWords(text)}</b> words you have typed</> : null}. Nothing is added to your history.
+          </p>
+          <p>You will go back to the dictation page and can start again whenever you are ready.</p>
+        </ConfirmDialog>
+      )}
 
       {confirming && (
         <Modal title="Submit your answer?" onClose={() => setConfirming(false)}>
