@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { Types } from 'mongoose';
 import { z } from 'zod';
-import { roundTo2, type MistakeKind } from '../../evaluator/index.js';
+import { GROUP_OF_KIND, MISTAKE_GROUPS, kindsInGroup, roundTo2, type MistakeGroup, type MistakeKind } from '../../evaluator/index.js';
 import { ApiError } from '../../middleware/errors.js';
 import { idParam, parse } from '../../middleware/validate.js';
 import { Attempt, Dictation, UserWordStats } from '../../models/index.js';
@@ -51,7 +51,7 @@ analyticsRouter.get('/analytics/summary', async (req, res) => {
 
   const [totals, recent, dayRows] = await Promise.all([
     Attempt.aggregate<{
-      attempts: number; avg: number; best: number; judged: number; passed: number; dictations: string[];
+      attempts: number; avg: number; best: number; dictations: string[];
     }>([
       { $match: match },
       {
@@ -60,8 +60,6 @@ analyticsRouter.get('/analytics/summary', async (req, res) => {
           attempts: { $sum: 1 },
           avg: { $avg: '$result.errorPct' },
           best: { $min: '$result.errorPct' },
-          judged: { $sum: { $cond: [{ $isNumber: '$result.limitPct' }, 1, 0] } },
-          passed: { $sum: { $cond: [{ $eq: ['$result.passed', true] }, 1, 0] } },
           dictations: { $addToSet: '$dictationId' },
         },
       },
@@ -85,7 +83,6 @@ analyticsRouter.get('/analytics/summary', async (req, res) => {
     dictationsAttempted: t?.dictations.length ?? 0,
     avgErrorPct: t ? roundTo2(t.avg) : null,
     bestErrorPct: t ? t.best : null,
-    passRatePct: t && t.judged > 0 ? roundTo2((t.passed / t.judged) * 100) : null,
     last7Days: { attempts: recent[0]?.attempts ?? 0, avgErrorPct: recent[0] ? roundTo2(recent[0].avg) : null },
     streakDays: currentStreak(dayRows.map((d) => d._id), todayStr),
   });
@@ -132,6 +129,71 @@ analyticsRouter.get('/analytics/mistakes', async (req, res) => {
   res.json({ items, total: items.reduce((n, i) => n + i.count, 0) });
 });
 
+// Every mistake the student has made, collapsed to "what was dictated -> what they typed", most repeated first.
+// `group` narrows it to one family (see evaluator/groups.ts); `groups` always carries the counts for all six.
+// Attempts where less than half the dictation was typed are left out: an accidental blank submit would otherwise bury everything under hundreds of omissions.
+analyticsRouter.get('/analytics/my-mistakes', async (req, res) => {
+  const q = parse(
+    z.object({
+      group: z.enum(MISTAKE_GROUPS).optional(),
+      page: z.coerce.number().int().min(1).default(1),
+      limit: z.coerce.number().int().min(1).max(500).default(30),
+    }),
+    req.query,
+  );
+  const base = [
+    {
+      $match: {
+        userId: uid(req),
+        status: 'submitted',
+        mistakes: { $exists: true, $ne: [] },
+        $expr: { $gte: ['$result.attemptWords', { $multiply: [0.5, '$result.masterWords'] }] },
+      },
+    },
+    { $project: { mistakes: 1, submittedAt: 1 } },
+    { $unwind: '$mistakes' },
+  ];
+
+  const [kindRows, page] = await Promise.all([
+    Attempt.aggregate<{ _id: MistakeKind; count: number }>([...base, { $group: { _id: '$mistakes.kind', count: { $sum: 1 } } }]),
+    Attempt.aggregate<{ rows: { _id: { kind: MistakeKind; master: string | null; attempt: string | null }; count: number; lastAt: Date }[]; total: { n: number }[] }>([
+      ...base,
+      ...(q.group ? [{ $match: { 'mistakes.kind': { $in: kindsInGroup(q.group) } } }] : []),
+      {
+        $group: {
+          _id: { kind: '$mistakes.kind', master: { $ifNull: ['$mistakes.master', null] }, attempt: { $ifNull: ['$mistakes.attempt', null] } },
+          count: { $sum: 1 },
+          lastAt: { $max: '$submittedAt' },
+        },
+      },
+      { $sort: { count: -1, lastAt: -1, '_id.master': 1, '_id.attempt': 1, '_id.kind': 1 } },
+      { $facet: { rows: [{ $skip: (q.page - 1) * q.limit }, { $limit: q.limit }], total: [{ $count: 'n' }] } },
+    ]),
+  ]);
+
+  const counts = Object.fromEntries(MISTAKE_GROUPS.map((g) => [g, 0])) as Record<MistakeGroup, number>;
+  for (const r of kindRows) {
+    const g = GROUP_OF_KIND[r._id];
+    if (g) counts[g] += r.count; // ignore a kind this build does not know
+  }
+  const facet = page[0];
+  res.json({
+    groups: MISTAKE_GROUPS.map((g) => ({ group: g, count: counts[g] })),
+    total: Object.values(counts).reduce((a, b) => a + b, 0),
+    items: (facet?.rows ?? []).map((r) => ({
+      kind: r._id.kind,
+      group: GROUP_OF_KIND[r._id.kind] ?? null,
+      master: r._id.master,
+      attempt: r._id.attempt,
+      count: r.count,
+      lastAt: r.lastAt,
+    })),
+    totalItems: facet?.total[0]?.n ?? 0,
+    page: q.page,
+    limit: q.limit,
+  });
+});
+
 analyticsRouter.get('/analytics/weak-words', async (req, res) => {
   const { limit } = parse(z.object({ limit: z.coerce.number().int().min(1).max(100).default(20) }), req.query);
   const rows = await UserWordStats.find({ userId: req.user!.id }).sort({ weightedMisses: -1, word: 1 }).limit(limit).lean();
@@ -153,7 +215,7 @@ analyticsRouter.get('/analytics/dictations/:id', async (req, res) => {
   if (!dictation) throw ApiError.notFound('Dictation not found');
   const attempts = await Attempt.find(
     { userId: req.user!.id, dictationId: id, status: 'submitted' },
-    { submittedAt: 1, 'result.errorPct': 1, 'result.full': 1, 'result.half': 1, 'result.passed': 1, timeTakenSec: 1 },
+    { submittedAt: 1, 'result.errorPct': 1, 'result.full': 1, 'result.half': 1, timeTakenSec: 1 },
   ).sort({ submittedAt: 1 }).lean();
   const errs = attempts.map((a) => a.result?.errorPct).filter((n): n is number => typeof n === 'number');
   res.json({
@@ -164,7 +226,6 @@ analyticsRouter.get('/analytics/dictations/:id', async (req, res) => {
       errorPct: a.result?.errorPct ?? null,
       full: a.result?.full ?? null,
       half: a.result?.half ?? null,
-      passed: a.result?.passed ?? null,
       timeTakenSec: a.timeTakenSec ?? null,
     })),
     bestErrorPct: errs.length ? Math.min(...errs) : null,

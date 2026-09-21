@@ -20,7 +20,7 @@ function Profiles() {
     <section className="stack">
       <div>
         <h2>Exam settings</h2>
-        <p className="muted small">Speed, time and the pass limit. The seeded numbers are from a secondary source: check them against the latest SSC notice, then tick “Checked against notice”.</p>
+        <p className="muted small">Speed, time, length and the comma rule. Attempts are shown as raw statistics, so there is no pass limit. The seeded numbers are from a secondary source: check them against the latest SSC notice, then tick “Checked against notice”.</p>
       </div>
       {q.isPending ? <Spinner /> : q.error ? <ErrorState error={q.error} /> : q.data.map((p) => <ProfileRow key={`${p.code}-${p.rulesVersion}`} profile={p} />)}
     </section>
@@ -33,7 +33,7 @@ function ProfileRow({ profile }: { profile: AdminProfile }) {
   const save = useMutation({
     mutationFn: () => api(`/admin/exam-profiles/${profile.code}`, {
       method: 'PUT',
-      body: { name: p.name, wpm: p.wpm, durationMin: p.durationMin, words: p.words, limits: p.limits, rules: p.rules, active: p.active, verifiedAgainstNotice: p.verifiedAgainstNotice },
+      body: { name: p.name, wpm: p.wpm, durationMin: p.durationMin, words: p.words, rules: p.rules, active: p.active, verifiedAgainstNotice: p.verifiedAgainstNotice },
     }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['admin', 'profiles'] }).then(() => qc.invalidateQueries({ queryKey: ['exam-profiles'] })),
   })
@@ -49,8 +49,6 @@ function ProfileRow({ profile }: { profile: AdminProfile }) {
         <Field label="Speed (wpm)" w={100}><input className="input" type="number" value={p.wpm} onChange={(e) => setP({ ...p, wpm: num(e.target.value) })} /></Field>
         <Field label="Time (min)" w={100}><input className="input" type="number" value={p.durationMin} onChange={(e) => setP({ ...p, durationMin: num(e.target.value) })} /></Field>
         <Field label="Words" w={100}><input className="input" type="number" value={p.words} onChange={(e) => setP({ ...p, words: num(e.target.value) })} /></Field>
-        <Field label="Limit: general %" w={130}><input className="input" type="number" step="0.5" value={p.limits.general} onChange={(e) => setP({ ...p, limits: { ...p.limits, general: num(e.target.value) } })} /></Field>
-        <Field label="Limit: reserved %" w={130}><input className="input" type="number" step="0.5" value={p.limits.reserved} onChange={(e) => setP({ ...p, limits: { ...p.limits, reserved: num(e.target.value) } })} /></Field>
         <Field label="Commas" w={150}>
           <select className="select" value={p.rules.commas} onChange={(e) => setP({ ...p, rules: { commas: e.target.value as 'ignore' | 'half' } })}>
             <option value="ignore">Ignored</option>

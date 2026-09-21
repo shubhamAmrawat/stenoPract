@@ -5,7 +5,8 @@ interface AttemptLike {
   dictationId: unknown;
   textVersion: number;
   examProfile: string;
-  category: string;
+  /** Legacy field on older attempts; never sent to the client. */
+  category?: string | null;
   status: string;
   typedText?: string | null;
   listenedWpm?: number | null;
@@ -18,6 +19,12 @@ interface AttemptLike {
   mistakes?: unknown[] | null;
 }
 
+/** Older attempts stored a pass limit and verdict; they are no longer shown. */
+function withoutVerdict(result: Record<string, unknown>): Record<string, unknown> {
+  const { limitPct: _limitPct, passed: _passed, ...rest } = result;
+  return rest;
+}
+
 export function publicAttempt(a: AttemptLike, opts: { masterText?: string } = {}) {
   const durationSec = Math.round((a.deadlineAt.getTime() - a.startedAt.getTime()) / 1000);
   const errorPct = typeof a.result?.errorPct === 'number' ? a.result.errorPct : null;
@@ -26,7 +33,6 @@ export function publicAttempt(a: AttemptLike, opts: { masterText?: string } = {}
     dictationId: String(a.dictationId),
     textVersion: a.textVersion,
     examProfile: a.examProfile,
-    category: a.category,
     status: a.status,
     typedText: a.typedText ?? '',
     listenedWpm: a.listenedWpm ?? null,
@@ -41,7 +47,7 @@ export function publicAttempt(a: AttemptLike, opts: { masterText?: string } = {}
     ...(a.status === 'submitted' && a.result
       ? {
           // Mongoose drops an empty object on save, so a perfect attempt (no mistakes) is stored without a breakdown: always send one.
-          result: { ...a.result, breakdown: a.result.breakdown ?? {}, accuracyPct: errorPct === null ? null : roundTo2(Math.max(0, 100 - errorPct)) },
+          result: { ...withoutVerdict(a.result), breakdown: a.result.breakdown ?? {}, accuracyPct: errorPct === null ? null : roundTo2(Math.max(0, 100 - errorPct)) },
           mistakes: a.mistakes ?? [],
           // The master transcript is only ever revealed after the attempt is submitted.
           masterText: opts.masterText ?? null,
@@ -62,7 +68,6 @@ export function attemptSummary(
     dictationTitle: dictation?.title ?? null,
     exerciseNo: dictation?.exerciseNo ?? null,
     examProfile: a.examProfile,
-    category: a.category,
     status: a.status,
     startedAt: a.startedAt,
     submittedAt: a.submittedAt ?? null,
@@ -70,7 +75,5 @@ export function attemptSummary(
     full: r.full ?? null,
     half: r.half ?? null,
     errorPct: r.errorPct ?? null,
-    limitPct: r.limitPct ?? null,
-    passed: r.passed ?? null,
   };
 }

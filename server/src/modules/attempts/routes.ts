@@ -1,10 +1,12 @@
 import { Router } from 'express';
+import type { Types } from 'mongoose';
 import { z } from 'zod';
+import { roundTo2 } from '../../evaluator/index.js';
 import { ApiError } from '../../middleware/errors.js';
 import { submitLimiter } from '../../middleware/security.js';
 import { idParam, objectId, parse } from '../../middleware/validate.js';
-import { Attempt, Dictation, DictationText, ExamProfile, UserDictationState } from '../../models/index.js';
-import { submitAttempt } from '../../services/attempts.js';
+import { Attempt, Dictation, DictationText, ExamProfile, User, UserDictationState } from '../../models/index.js';
+import { reevaluateAttempt, submitAttempt } from '../../services/attempts.js';
 import { attemptSummary, publicAttempt } from './serialize.js';
 
 export const attemptsRouter = Router();
@@ -21,7 +23,6 @@ attemptsRouter.post('/dictations/:id/attempts', async (req, res) => {
   const body = parse(
     z.object({
       examProfile: z.string().min(1).max(20).optional(),
-      category: z.enum(['general', 'reserved']).optional(),
       listenedWpm: z.number().min(20).max(400).optional(),
     }),
     req.body ?? {},
@@ -46,7 +47,6 @@ attemptsRouter.post('/dictations/:id/attempts', async (req, res) => {
       dictationId: id,
       textVersion: dictation.activeTextVersion,
       examProfile: profile.code,
-      category: body.category ?? user.settings.category,
       listenedWpm: body.listenedWpm,
       startedAt,
       deadlineAt: new Date(startedAt.getTime() + profile.durationMin * 60_000),
@@ -89,6 +89,80 @@ attemptsRouter.get('/attempts/:id', async (req, res) => {
       ? await DictationText.findOne({ dictationId: attempt.dictationId, version: attempt.textVersion }).lean()
       : null;
   res.json({ attempt: publicAttempt(attempt, { masterText: text?.masterText }) });
+});
+
+// Re-grade my own attempt against the current transcript and rules (e.g. after the transcript was corrected).
+attemptsRouter.post('/attempts/:id/reevaluate', submitLimiter, async (req, res) => {
+  const { id } = parse(idParam, req.params);
+  const userId = req.user!.id;
+  const attempt = await Attempt.findOne({ _id: id, userId, status: 'submitted' }, { dictationId: 1, textVersion: 1 }).lean();
+  if (!attempt) throw ApiError.notFound('Submitted attempt not found');
+  const dictation = await Dictation.findById(attempt.dictationId, { activeTextVersion: 1 }).lean();
+  const version = dictation?.activeTextVersion ?? attempt.textVersion;
+  const outcome = await reevaluateAttempt(id, version, userId);
+  const [fresh, text] = await Promise.all([
+    Attempt.findById(id).lean(),
+    DictationText.findOne({ dictationId: attempt.dictationId, version }).lean(),
+  ]);
+  res.json({
+    attempt: publicAttempt(fresh!, { masterText: text?.masterText }),
+    changed: outcome.changed,
+    before: outcome.before,
+    after: outcome.after,
+  });
+});
+
+// "Where you stand": how this attempt compares with the other students on the same transcript.
+// Each student counts once, by their best attempt. Only first names are ever shown, and nothing until enough students have tried it.
+const MIN_STUDENTS = 3;
+attemptsRouter.get('/attempts/:id/standing', async (req, res) => {
+  const { id } = parse(idParam, req.params);
+  const me = String(req.user!.id);
+  const attempt = await Attempt.findOne({ _id: id, userId: me }, { dictationId: 1, textVersion: 1, status: 1, 'result.errorPct': 1 }).lean();
+  if (!attempt) throw ApiError.notFound('Attempt not found');
+  const myError = attempt.result?.errorPct;
+  if (attempt.status !== 'submitted' || typeof myError !== 'number') throw new ApiError(409, 'Submit this attempt first', 'NOT_SUBMITTED');
+
+  // One row per student: their best attempt. Near-empty attempts (under half the words typed) would only skew the picture.
+  const rows = await Attempt.aggregate<{ _id: Types.ObjectId; best: number }>([
+    { $match: { dictationId: attempt.dictationId, textVersion: attempt.textVersion, status: 'submitted', 'result.errorPct': { $type: 'number' } } },
+    { $match: { $expr: { $gte: ['$result.attemptWords', { $multiply: [0.5, '$result.masterWords'] }] } } },
+    { $sort: { 'result.errorPct': 1, submittedAt: 1 } },
+    { $group: { _id: '$userId', best: { $first: '$result.errorPct' } } },
+  ]);
+
+  const others = rows.filter((r) => String(r._id) !== me);
+  const students = others.length + 1;
+  if (students < MIN_STUDENTS) return void res.json({ ready: false, students, minStudents: MIN_STUDENTS });
+
+  const myRow = rows.find((r) => String(r._id) === me);
+  const myBest = Math.min(myError, myRow?.best ?? Infinity);
+  const better = others.filter((r) => r.best > myError).length;
+  const rank = 1 + others.filter((r) => r.best < myError).length;
+
+  const top = others.reduce<(typeof others)[number] | null>((t, r) => (t === null || r.best < t.best ? r : t), null);
+  const topperIsYou = top === null || myBest <= top.best;
+  const topperError = topperIsYou ? myBest : top!.best;
+  let topperName: string | null = null;
+  if (!topperIsYou) {
+    const u = await User.findById(top!._id, { name: 1 }).lean();
+    topperName = u?.name?.trim().split(/\s+/)[0] || 'A student';
+  }
+  const accuracy = (err: number) => roundTo2(Math.max(0, 100 - err));
+  const avgError = (others.reduce((n, r) => n + r.best, 0) + myBest) / students;
+
+  res.json({
+    ready: true,
+    students,
+    minStudents: MIN_STUDENTS,
+    betterThanPct: Math.round((better / others.length) * 100),
+    rank,
+    yourAccuracyPct: accuracy(myError),
+    topperAccuracyPct: accuracy(topperError),
+    topperName,
+    topperIsYou,
+    averageAccuracyPct: accuracy(avgError),
+  });
 });
 
 // Give up a draft (start over).

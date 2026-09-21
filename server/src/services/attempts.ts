@@ -9,11 +9,10 @@ export interface EvaluationInputs {
   textVersion: number;
   dictationId: Types.ObjectId | string;
   examProfile: string;
-  category: 'general' | 'reserved';
   typedText: string;
 }
 
-/** Runs the evaluator for one attempt against its pinned transcript version and the profile's limit. */
+/** Runs the evaluator for one attempt against its pinned transcript version. Results are raw statistics: no pass/fail limit is applied. */
 export async function evaluateAgainstMaster(inputs: EvaluationInputs): Promise<{ result: EvaluationResult; masterText: string; rulesVersion: number }> {
   const [text, profile, lexicon] = await Promise.all([
     DictationText.findOne({ dictationId: inputs.dictationId, version: inputs.textVersion }).lean(),
@@ -25,9 +24,14 @@ export async function evaluateAgainstMaster(inputs: EvaluationInputs): Promise<{
   const result = evaluate(text.masterText, inputs.typedText, {
     lexicon,
     rules: { commas: profile?.rules?.commas === 'half' ? 'half' : 'ignore' },
-    limitPct: profile?.limits?.[inputs.category] ?? undefined,
   });
   return { result, masterText: text.masterText, rulesVersion: profile?.rulesVersion ?? 1 };
+}
+
+/** Splits an evaluation into the summary that is stored on the attempt (without the unused pass/fail fields) and its mistakes. */
+export function storableResult(result: EvaluationResult) {
+  const { limitPct: _limitPct, passed: _passed, ...rest } = result;
+  return rest;
 }
 
 /**
@@ -44,12 +48,11 @@ export async function submitAttempt(params: { attemptId: string; userId: string;
     textVersion: draft.textVersion,
     dictationId: draft.dictationId,
     examProfile: draft.examProfile,
-    category: draft.category,
     typedText,
   });
 
   const now = new Date();
-  const { mistakes, ...summary } = result;
+  const { mistakes, ...summary } = storableResult(result);
   // Atomic claim: only one concurrent request can flip draft -> submitted.
   const claimed = await Attempt.findOneAndUpdate(
     { _id: draft._id, userId: params.userId, status: 'draft' },
@@ -96,6 +99,51 @@ export async function submitAttempt(params: { attemptId: string; userId: string;
     });
   }
   return { attempt: claimed.toObject(), justSubmitted: true };
+}
+
+export interface ReevaluateOutcome {
+  id: string;
+  before: number | null;
+  after: number;
+  /** False when the stored analysis was already up to date, so nothing was written. */
+  changed: boolean;
+  textVersion: number;
+}
+
+/**
+ * Re-grades one submitted attempt against `targetVersion` of its transcript, using the current profile rules.
+ * Only writes when the outcome differs from what is stored. Running word statistics are NOT re-counted.
+ * Pass `userId` to restrict it to that student's own attempt.
+ */
+export async function reevaluateAttempt(attemptId: string, targetVersion: number, userId?: string): Promise<ReevaluateOutcome> {
+  const attempt = await Attempt.findOne(userId ? { _id: attemptId, userId } : { _id: attemptId });
+  if (!attempt || attempt.status !== 'submitted') throw ApiError.notFound('Submitted attempt not found');
+  const before = attempt.result?.errorPct ?? null;
+  const { result, rulesVersion } = await evaluateAgainstMaster({
+    textVersion: targetVersion,
+    dictationId: attempt.dictationId,
+    examProfile: attempt.examProfile,
+    typedText: attempt.typedText ?? '',
+  });
+  const { mistakes, ...summary } = storableResult(result);
+
+  const stored = attempt.result;
+  const same =
+    attempt.textVersion === targetVersion &&
+    stored?.full === summary.full &&
+    stored?.half === summary.half &&
+    stored?.masterWords === summary.masterWords &&
+    stored?.attemptWords === summary.attemptWords &&
+    stored?.errorPct === summary.errorPct &&
+    JSON.stringify(stored?.breakdown ?? {}) === JSON.stringify(summary.breakdown ?? {});
+  if (same) return { id: String(attempt._id), before, after: result.errorPct, changed: false, textVersion: targetVersion };
+
+  attempt.textVersion = targetVersion;
+  attempt.set('result', summary);
+  attempt.set('mistakes', mistakes);
+  attempt.evaluationHistory.push({ at: new Date(), textVersion: targetVersion, rulesVersion, full: result.full, half: result.half, errorPct: result.errorPct });
+  await attempt.save();
+  return { id: String(attempt._id), before, after: result.errorPct, changed: true, textVersion: targetVersion };
 }
 
 export function toObjectId(id: string): Types.ObjectId {

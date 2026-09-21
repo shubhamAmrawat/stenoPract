@@ -85,7 +85,6 @@ export interface AdminProfile {
   wpm: number
   durationMin: number
   words: number
-  limits: { general: number; reserved: number }
   rules: { commas: 'ignore' | 'half' }
   rulesVersion: number
   active: boolean

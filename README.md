@@ -16,7 +16,9 @@ English only for now. People sign in with Google or with an email and password, 
 - The evaluator aligns your text to the transcript at word level (dynamic-programming alignment).
 - A full mistake counts 1, a half mistake counts 0.5.
 - Error % = (full + half / 2) / total words x 100.
-- The allowed error limits per exam (Grade C, Grade D, common practice) are seeded as starting values and are editable by an admin under "Rules and exams". They have not been checked against the latest SSC notice yet, so verify them before relying on them.
+- There is no pass or fail. Every attempt shows raw statistics: accuracy, error rate, full and half mistakes, and where each mistake fell. Exam settings (speed, time, length, comma rule) are editable by an admin under "Rules and exams"; the seeded numbers have not been checked against the latest SSC notice yet, so verify them before relying on them.
+- After submitting, students can filter the marked-up text by kind of mistake, download the result as a PDF (print view) or their mistakes as CSV, re-evaluate an attempt after a transcript correction, and see where they stand against other students (best attempt of each student, first names only, shown once at least 3 students have tried the exercise). "My mistakes" collects every mistake by kind, and works as a spelling notebook.
+- Exam mode (a switch on the dictation page, remembered in the browser) shows an instructions card first, plays a soft exam-hall murmur while typing, hides the scrollbar and turns off pasting. It is StenoSeekho's own practice mode and is not connected to any exam body.
 
 ## Tech stack
 
@@ -30,7 +32,7 @@ English only for now. People sign in with Google or with an email and password, 
 
 ```
 client/            React app (student side and the /admin console); vercel.json holds the Vercel rewrites
-  src/pages/       student pages: login, home, book, dictation, write, analysis, history, dashboard
+  src/pages/       student pages: login, home, book, dictation, write, analysis, history, my mistakes, dashboard
   src/admin/       admin console pages
   src/auth/        Google sign-in button, auth context, route guards (the login and create-account form is in src/pages/LoginPage.tsx)
 server/
@@ -145,7 +147,7 @@ Open `/admin` while signed in as an admin. It has its own layout, and "Student p
 - **Reports**: transcript errors and video problems that students report.
 - **Resources**: the files students see on the home page, arranged in groups you create (KC Magazines, Syllabus, Announcements, and so on). Upload PDFs from your computer (files or whole folders, needs the R2 settings), import a shared Google Drive folder at once, or add links by hand.
 - **Access**: choose who can create an account, invite people, see everyone who joined, sign people out and remove access.
-- **Rules and exams**: exam settings and error limits, words accepted for each other, and abbreviations used by the marking engine.
+- **Rules and exams**: exam settings (speed, time, length, comma rule), words accepted for each other, and abbreviations used by the marking engine.
 
 ## Scripts
 

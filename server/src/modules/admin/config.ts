@@ -14,7 +14,8 @@ const profileBody = z.object({
   wpm: z.number().int().min(20).max(300),
   durationMin: z.number().int().min(1).max(180),
   words: z.number().int().min(50).max(5000),
-  limits: z.object({ general: z.number().min(0).max(100), reserved: z.number().min(0).max(100) }),
+  /** Legacy and ignored by grading. Accepted so older admin pages keep working. */
+  limits: z.object({ general: z.number().min(0).max(100), reserved: z.number().min(0).max(100) }).optional(),
   rules: z.object({ commas: z.enum(['ignore', 'half']) }).default({ commas: 'ignore' }),
   active: z.boolean().default(true),
   verifiedAgainstNotice: z.boolean().default(false),
@@ -22,7 +23,7 @@ const profileBody = z.object({
 
 const publicProfile = (p: {
   code: string; name: string; wpm: number; durationMin: number; words: number;
-  limits?: { general: number; reserved: number } | null; rules?: { commas?: string | null } | null;
+  rules?: { commas?: string | null } | null;
   rulesVersion?: number | null; active?: boolean | null; verifiedAgainstNotice?: boolean | null;
 }) => ({
   code: p.code,
@@ -30,7 +31,6 @@ const publicProfile = (p: {
   wpm: p.wpm,
   durationMin: p.durationMin,
   words: p.words,
-  limits: p.limits,
   rules: { commas: p.rules?.commas ?? 'ignore' },
   rulesVersion: p.rulesVersion ?? 1,
   active: p.active ?? true,
@@ -42,15 +42,13 @@ adminConfigRouter.get('/exam-profiles', async (_req, res) => {
   res.json({ items: items.map(publicProfile) });
 });
 
-// Create or replace a profile. Changing limits or rules bumps rulesVersion so old and new gradings can be told apart.
+// Create or replace a profile. Changing the grading rules bumps rulesVersion so old and new gradings can be told apart.
 adminConfigRouter.put('/exam-profiles/:code', async (req, res) => {
   const code = parse(z.string().regex(/^[A-Za-z0-9_]{2,20}$/), req.params.code).toUpperCase();
   const body = parse(profileBody, req.body);
   const existing = await ExamProfile.findOne({ code }).lean();
   const gradingChanged =
     !existing ||
-    existing.limits?.general !== body.limits.general ||
-    existing.limits?.reserved !== body.limits.reserved ||
     (existing.rules?.commas ?? 'ignore') !== body.rules.commas;
 
   const profile = await ExamProfile.findOneAndUpdate(

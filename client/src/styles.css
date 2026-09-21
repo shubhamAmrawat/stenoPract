@@ -372,3 +372,54 @@ button { font: inherit; color: inherit; }
 .cmp-btn:hover, .cmp-btn:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 35%, transparent); outline: none; }
 .cmp-btn.is-active { box-shadow: 0 0 0 2px var(--primary), 0 4px 12px color-mix(in srgb, var(--primary) 25%, transparent); position: relative; z-index: 1; }
 .cmp-focus .cmp-ok { opacity: 0.3; }
+
+/* ---------- Mistake filter chips, "where you stand", exam mode ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips .chip b { font-weight: 700; }
+.chip-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; box-shadow: 0 0 0 2px #fff; }
+.tok-dim { color: var(--muted); }
+.standing-row { grid-template-columns: 190px 1fr 64px; }
+.standing-line { margin: 0; }
+.bar-track > span.is-you { background: var(--primary); }
+.bar-track > span.is-top { background: #10b981; }
+.bar-track > span.is-avg { background: #94a3b8; }
+.editor-exam { scrollbar-width: none; resize: none; }
+.editor-exam::-webkit-scrollbar { display: none; }
+.exam-badge { white-space: nowrap; }
+.start-agree { margin: 2px 0 6px; }
+@media (max-width: 640px) { .standing-row { grid-template-columns: 120px 1fr 52px; } }
+
+/* ---------- Printing / "Download result (PDF)" ---------- */
+.print-only { display: none; }
+@media print {
+  @page { margin: 14mm; }
+  body { background: #fff !important; }
+  .topbar, .preview-bar, .write-bar, .no-print { display: none !important; }
+  .print-only:not(.stack) { display: block !important; }
+  .print-only.stack { display: flex !important; }
+  .print-head { margin-bottom: 8px; font-size: 0.95rem; }
+  .page { padding: 0 !important; }
+  .container { max-width: none !important; padding: 0 !important; }
+  .card { box-shadow: none !important; break-inside: avoid; }
+  .table tr, .stat { break-inside: avoid; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  a { text-decoration: none !important; color: inherit !important; }
+}
+
+/* ---------- Result hero: two rings and coloured stat tiles ---------- */
+.rings { display: flex; gap: 16px; }
+.ring.ring-sm { width: 138px; height: 138px; flex: none; }
+.ring.ring-sm::after { inset: 11px; }
+.ring.ring-sm .big { font-size: 1.5rem; }
+.stat-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.stat-tile {
+  --tone: var(--primary);
+  position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 14px 12px 18px; border-radius: 14px;
+  background: color-mix(in srgb, var(--tone) 7%, #fff);
+  border: 1.5px solid color-mix(in srgb, var(--tone) 30%, #fff);
+}
+.stat-tile::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--tone); }
+.stat-tile b { font-family: var(--font-head); font-size: 1.5rem; line-height: 1.2; color: color-mix(in srgb, var(--tone) 65%, #0b1b2b); }
+@media (max-width: 720px) { .rings { justify-content: center; } }
+@media (max-width: 400px) { .ring.ring-sm { width: 128px; height: 128px; } .rings { gap: 10px; } }

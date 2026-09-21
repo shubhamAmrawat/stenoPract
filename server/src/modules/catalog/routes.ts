@@ -17,7 +17,6 @@ catalogRouter.get('/exam-profiles', async (_req, res) => {
       wpm: p.wpm,
       durationMin: p.durationMin,
       words: p.words,
-      limits: p.limits,
       verifiedAgainstNotice: p.verifiedAgainstNotice,
     })),
   });

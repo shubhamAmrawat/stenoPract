@@ -6,15 +6,15 @@ import { Abbreviation, AlternateForm, ExamProfile, ResourceGroup } from '../mode
  * Starting values only. Inserted if missing and NEVER overwritten afterwards,
  * so anything an admin edits stays edited.
  *
- * SSC_C and SSC_D limits, word counts and transcription times were checked against SSC's own documents
- * (skill-test result write-up: Grade C 5% general / 7% reserved, Grade D 7% / 10%; recruitment notice: Grade C
- * 100 wpm and 40 min, Grade D 80 wpm and 50 min, English; evaluation guidelines: 1000 / 800 word master passages).
+ * SSC_C and SSC_D word counts and transcription times were checked against SSC's own documents
+ * (recruitment notice: Grade C 100 wpm and 40 min, Grade D 80 wpm and 50 min, English;
+ * evaluation guidelines: 1000 / 800 word master passages). Attempts show raw statistics, so no pass limits are seeded.
  * COMMON is our own practice profile, so it stays unverified.
  */
 const EXAM_PROFILES = [
-  { code: 'SSC_C', name: 'SSC Stenographer Grade C', wpm: 100, durationMin: 40, words: 1000, limits: { general: 5, reserved: 7 }, verifiedAgainstNotice: true },
-  { code: 'SSC_D', name: 'SSC Stenographer Grade D', wpm: 80, durationMin: 50, words: 800, limits: { general: 7, reserved: 10 }, verifiedAgainstNotice: true },
-  { code: 'COMMON', name: 'Common practice', wpm: 100, durationMin: 45, words: 1000, limits: { general: 5, reserved: 7 } },
+  { code: 'SSC_C', name: 'SSC Stenographer Grade C', wpm: 100, durationMin: 40, words: 1000, verifiedAgainstNotice: true },
+  { code: 'SSC_D', name: 'SSC Stenographer Grade D', wpm: 80, durationMin: 50, words: 800, verifiedAgainstNotice: true },
+  { code: 'COMMON', name: 'Common practice', wpm: 100, durationMin: 45, words: 1000 },
 ];
 
 /** The two shelves the app started with. Only created on a database that has none, so a shelf an admin renames or deletes stays that way. */

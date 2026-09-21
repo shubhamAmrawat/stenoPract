@@ -2,13 +2,12 @@ import { useMutation } from '@tanstack/react-query'
 import { useRef, useState, type FormEvent } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { Avatar } from '../components/Avatar'
-import { InfoTip } from '../components/InfoTip'
 import { ErrorState, Spinner } from '../components/ui'
 import { api, errorMessage } from '../lib/api'
 import { useExamProfiles } from '../lib/hooks'
 import { squarePhoto } from '../lib/image'
 import { THEMES, type ThemeId } from '../lib/themes'
-import type { Category, User } from '../lib/types'
+import type { User } from '../lib/types'
 import { useThemeChoice } from '../lib/useTheme'
 
 const CameraIcon = () => (
@@ -177,13 +176,12 @@ function ExamCard({ user }: { user: User }) {
   const { setUser } = useAuth()
   const profilesQ = useExamProfiles()
   const [code, setCode] = useState(user.settings.examProfile)
-  const [category, setCategory] = useState<Category>(user.settings.category)
 
   const save = useMutation({
-    mutationFn: () => api<{ user: User }>('/me/settings', { method: 'PATCH', body: { examProfile: code, category } }),
+    mutationFn: () => api<{ user: User }>('/me/settings', { method: 'PATCH', body: { examProfile: code } }),
     onSuccess: (r) => setUser(r.user),
   })
-  const changed = code !== user.settings.examProfile || category !== user.settings.category
+  const changed = code !== user.settings.examProfile
   const chosen = profilesQ.data?.find((p) => p.code === code)
 
   return (
@@ -203,30 +201,14 @@ function ExamCard({ user }: { user: User }) {
               {profilesQ.data.map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
             </select>
           </div>
-          <div className="field">
-            <span className="label row" style={{ gap: 6 }}>
-              Category
-              <InfoTip label="What the category means">
-                <b>It only changes the pass mark.</b> {chosen
-                  ? <>For {chosen.name}, general (unreserved) candidates may make up to {chosen.limits.general}% mistakes and reserved-category candidates up to {chosen.limits.reserved}%.</>
-                  : 'General (unreserved) candidates get a stricter mistake limit than reserved-category candidates.'} Pick the one that applies to you.
-              </InfoTip>
-            </span>
-            <div className="segmented" role="group" aria-label="Category">
-              <button type="button" aria-pressed={category === 'general'} onClick={() => { setCategory('general'); save.reset() }}>General</button>
-              <button type="button" aria-pressed={category === 'reserved'} onClick={() => { setCategory('reserved'); save.reset() }}>Reserved</button>
-            </div>
-          </div>
-
           {chosen && (
             <>
               <dl className="exam-facts">
                 <div><dt>Speed</dt><dd>{chosen.wpm}<small> wpm</small></dd></div>
                 <div><dt>Time</dt><dd>{chosen.durationMin}<small> min</small></dd></div>
                 <div><dt>Length</dt><dd>~{chosen.words}<small> words</small></dd></div>
-                <div className="hot"><dt>Pass limit</dt><dd>{chosen.limits[category]}<small>% error</small></dd></div>
               </dl>
-              {!chosen.verifiedAgainstNotice && <p className="muted small">This limit has not yet been checked against the latest SSC notice.</p>}
+              {!chosen.verifiedAgainstNotice && <p className="muted small">These numbers have not yet been checked against the latest SSC notice.</p>}
             </>
           )}
 

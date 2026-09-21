@@ -6,7 +6,6 @@ const base = {
   dictationId: 'd1',
   textVersion: 1,
   examProfile: 'SSC_C',
-  category: 'general',
   status: 'submitted',
   typedText: 'hello world',
   startedAt: new Date('2026-01-01T10:00:00Z'),
@@ -21,6 +20,15 @@ describe('publicAttempt', () => {
     expect(out.result?.breakdown).toEqual({});
     expect(out.result?.accuracyPct).toBe(100);
     expect(out.mistakes).toEqual([]);
+  });
+
+  it('hides the pass limit and verdict that older attempts stored', () => {
+    const legacy = { full: 1, half: 0, masterWords: 2, attemptWords: 2, errorPct: 50, limitPct: 5, passed: false, breakdown: { substitution: 1 } };
+    const out = publicAttempt({ ...base, category: 'general', result: legacy, mistakes: [] });
+    expect(out.result).not.toHaveProperty('limitPct');
+    expect(out.result).not.toHaveProperty('passed');
+    expect(out).not.toHaveProperty('category');
+    expect((out.result as Record<string, unknown>).errorPct).toBe(50);
   });
 
   it('keeps a stored breakdown as it is', () => {

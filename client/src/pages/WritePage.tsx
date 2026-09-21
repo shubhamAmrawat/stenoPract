@@ -5,6 +5,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { Modal, Spinner, ErrorState } from '../components/ui'
 import { api, errorMessage } from '../lib/api'
 import { countWords, formatClock } from '../lib/format'
+import { startHallSound } from '../lib/hallSound'
+import { EXAM_MODE_KEY, HALL_SOUND_KEY, useStoredFlag } from '../lib/useStoredFlag'
 import type { Attempt } from '../lib/types'
 
 const AUTOSAVE_MS = 1500
@@ -20,6 +22,10 @@ function Editor({ attempt }: { attempt: Attempt }) {
   const [retaking, setRetaking] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   const [timeUp, setTimeUp] = useState(false)
+  // Exam mode is chosen on the dictation page and remembered in this browser.
+  const [exam] = useStoredFlag(EXAM_MODE_KEY, false)
+  const [sound, setSound] = useStoredFlag(HALL_SOUND_KEY, true)
+  const [pasteNote, setPasteNote] = useState(false)
 
   const textRef = useRef(text)
   useEffect(() => {
@@ -38,6 +44,33 @@ function Editor({ attempt }: { attempt: Attempt }) {
     const t = setInterval(() => setNow(Date.now()), 250)
     return () => clearInterval(t)
   }, [])
+
+  // Exam-hall murmur. Browsers keep audio paused until the page gets a tap or key press, so the first one wakes it.
+  useEffect(() => {
+    if (!exam || !sound) return
+    const hall = startHallSound()
+    if (!hall) return
+    const wake = () => hall.resume()
+    hall.resume()
+    window.addEventListener('keydown', wake)
+    window.addEventListener('pointerdown', wake)
+    return () => {
+      window.removeEventListener('keydown', wake)
+      window.removeEventListener('pointerdown', wake)
+      hall.stop()
+    }
+  }, [exam, sound])
+
+  useEffect(() => {
+    if (!pasteNote) return
+    const t = setTimeout(() => setPasteNote(false), 2500)
+    return () => clearTimeout(t)
+  }, [pasteNote])
+
+  const blockPaste = (e: { preventDefault: () => void }) => {
+    e.preventDefault()
+    setPasteNote(true)
+  }
 
   const finish = useMutation({
     mutationFn: (auto: boolean) =>
@@ -113,7 +146,7 @@ function Editor({ attempt }: { attempt: Attempt }) {
   })
 
   const timerClass = remaining <= 60 ? 'danger' : remaining <= 300 ? 'warn' : ''
-  const status = saveError ? 'Not saved: check your connection' : text === savedText ? 'All changes saved' : 'Saving…'
+  const status = saveError ? 'Not saved: check your connection' : pasteNote ? 'Pasting is turned off in exam mode' : text === savedText ? 'All changes saved' : 'Saving…'
 
   return (
     <>
@@ -124,6 +157,24 @@ function Editor({ attempt }: { attempt: Attempt }) {
             <div style={{ fontWeight: 700 }}>{countWords(text)} words</div>
             <div className={`small ${saveError ? '' : 'muted'}`} style={saveError ? { color: 'var(--full-ink)' } : undefined} aria-live="polite">{status}</div>
           </div>
+          {exam && (
+            <>
+              <span className="badge badge-info exam-badge" title="Exam mode is on. Turn it off on the dictation page.">Exam mode</span>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-pressed={sound}
+                aria-label={sound ? 'Mute exam-hall sound' : 'Play exam-hall sound'}
+                title={sound ? 'Mute exam-hall sound' : 'Play exam-hall sound'}
+                onClick={() => setSound(!sound)}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M11 5L6 9H2v6h4l5 4z" />
+                  {sound ? <path d="M15.5 8.5a5 5 0 0 1 0 7" /> : <path d="M17 9l5 6M22 9l-5 6" />}
+                </svg>
+              </button>
+            </>
+          )}
           <button className="btn btn-ghost btn-sm" onClick={() => setRetaking(true)} disabled={finish.isPending}>Retake</button>
           <button className="btn btn-primary" onClick={() => setConfirming(true)} disabled={finish.isPending}>{finish.isPending ? 'Submitting…' : 'Submit'}</button>
         </div>
@@ -139,7 +190,7 @@ function Editor({ attempt }: { attempt: Attempt }) {
         )}
         <textarea
           ref={areaRef}
-          className="editor"
+          className={`editor ${exam ? 'editor-exam' : ''}`}
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Type the dictation here…"
@@ -150,6 +201,8 @@ function Editor({ attempt }: { attempt: Attempt }) {
           data-gramm="false"
           aria-label="Your transcription"
           readOnly={finish.isPending}
+          onPaste={exam ? blockPaste : undefined}
+          onDrop={exam ? blockPaste : undefined}
         />
       </div>
 
