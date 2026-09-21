@@ -172,7 +172,7 @@ function DictationView({ id, showToggle, railOpen, onToggleRail }: { id: string;
                   {(profilesQ.data ?? []).map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
                 </select>
               </div>
-              <div className="field">
+              <div className="field hide">
                 <span className="label row" style={{ gap: 6 }}>
                   Category
                   <InfoTip label="What the category means">
