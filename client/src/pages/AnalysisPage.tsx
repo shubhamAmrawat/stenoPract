@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router'
 import { DiffLegend, DiffView } from '../components/DiffView'
 import { ReportModal } from '../components/ReportModal'
+import { SideBySide } from '../components/SideBySide'
 import { ErrorState, Spinner } from '../components/ui'
 import { api } from '../lib/api'
 import { formatDate, formatDuration, formatPct } from '../lib/format'
@@ -136,18 +137,7 @@ export function AnalysisPage() {
           </div>
         )}
 
-        {tab === 'compare' && (
-          <div className="listen-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
-            <div className="stack">
-              <h3>What you typed</h3>
-              <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>{a.typedText || <span className="muted">(nothing typed)</span>}</p>
-            </div>
-            <div className="stack">
-              <h3>The dictation</h3>
-              <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>{a.masterText}</p>
-            </div>
-          </div>
-        )}
+        {tab === 'compare' && <SideBySide ops={r.diff} typedText={a.typedText} masterText={a.masterText ?? ''} onReport={pickWord} />}
       </section>
 
       <div className="row">
