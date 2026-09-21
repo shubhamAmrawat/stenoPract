@@ -187,7 +187,7 @@ function DictationView({ id, showToggle, railOpen, onToggleRail }: { id: string;
                 </div>
               </div>
               {chosenProfile && !hasDraft && (
-                <div className="muted small">
+                <div className="muted small hide">
                   {chosenProfile.durationMin} minutes to transcribe · pass at {chosenProfile.limits[category]}% error or less
                   {!chosenProfile.verifiedAgainstNotice && ' (limit not yet verified against the latest SSC notice)'}
                 </div>
