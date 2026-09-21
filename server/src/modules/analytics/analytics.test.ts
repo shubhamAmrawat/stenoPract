@@ -30,7 +30,8 @@ describe('analytics', () => {
   it('is empty but valid for a new student', async () => {
     const { agent } = await loginAs(app, 'a@test.com');
     const s = await agent.get('/api/v1/analytics/summary');
-    expect(s.body).toMatchObject({ attempts: 0, avgErrorPct: null, passRatePct: null, streakDays: 0 });
+    expect(s.body).toMatchObject({ attempts: 0, avgErrorPct: null, streakDays: 0 });
+    expect(s.body).not.toHaveProperty('passRatePct');
     expect((await agent.get('/api/v1/analytics/trend')).body.items).toEqual([]);
     expect((await agent.get('/api/v1/analytics/mistakes')).body).toEqual({ items: [], total: 0 });
     expect((await agent.get('/api/v1/analytics/weak-words')).body.items).toEqual([]);
@@ -48,7 +49,7 @@ describe('analytics', () => {
     expect(s.attempts).toBe(3);
     expect(s.dictationsAttempted).toBe(1);
     expect(s.bestErrorPct).toBe(0);
-    expect(s.passRatePct).toBe(100);
+    expect(s).not.toHaveProperty('passRatePct');
     expect(s.streakDays).toBe(3);
     expect(s.last7Days.attempts).toBe(3);
 

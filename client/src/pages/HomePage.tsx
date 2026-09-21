@@ -100,7 +100,7 @@ function Resume({ loading, draft, last, firstSet }: ResumeProps) {
       ? new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(attempt.submittedAt))
       : null
     const result = !isDraft && attempt.errorPct !== null
-      ? `${formatPct(attempt.errorPct)} errors${attempt.passed === null ? '' : attempt.passed ? ', within the limit' : ', above the limit'}`
+      ? `${formatPct(attempt.errorPct)} errors`
       : null
     const title = attempt.dictationTitle ?? (attempt.exerciseNo !== null ? `Exercise ${attempt.exerciseNo}` : 'Your last dictation')
     // Titles are often just "Exercise 507"; do not print the same words twice.

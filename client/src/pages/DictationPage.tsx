@@ -12,34 +12,18 @@ import { api, errorMessage, qs } from '../lib/api'
 import { formatDate, formatPct } from '../lib/format'
 import { useExamProfiles } from '../lib/hooks'
 import { useMediaQuery } from '../lib/useMediaQuery'
-import type { Attempt, AttemptSummary, Category, Dictation, DictationSet, Paged, TranscriptResponse } from '../lib/types'
+import { EXAM_MODE_KEY, useStoredFlag } from '../lib/useStoredFlag'
+import type { Attempt, AttemptSummary, Dictation, DictationSet, Paged, TranscriptResponse } from '../lib/types'
 
 const DEFAULT_RATES = [0.5, 0.75, 1, 1.25, 1.5]
 
 interface Progress {
-  attempts: { id: string; submittedAt: string; errorPct: number | null; passed: boolean | null }[]
+  attempts: { id: string; submittedAt: string; errorPct: number | null }[]
   bestErrorPct: number | null
   avgErrorPct: number | null
 }
 
 const dictationQuery = (id: string) => ({ queryKey: ['dictation', id], queryFn: () => api<{ dictation: Dictation }>(`/dictations/${id}`).then((r) => r.dictation) })
-
-/** Remembers a yes/no choice in this browser. Storage can be blocked, so every access is guarded. */
-function useStoredFlag(key: string, initial: boolean): [boolean, (v: boolean) => void] {
-  const [value, setValue] = useState(() => {
-    try {
-      const v = localStorage.getItem(key)
-      return v === null ? initial : v === '1'
-    } catch {
-      return initial
-    }
-  })
-  const set = useCallback((v: boolean) => {
-    setValue(v)
-    try { localStorage.setItem(key, v ? '1' : '0') } catch { /* ignore */ }
-  }, [key])
-  return [value, set]
-}
 
 export function DictationPage() {
   const { id = '' } = useParams()
@@ -77,9 +61,9 @@ function DictationView({ id, showToggle, railOpen, onToggleRail }: { id: string;
   const [problem, setProblem] = useState<PlayerProblem | null>(null)
   const [rates, setRates] = useState<number[]>(DEFAULT_RATES)
   const [profile, setProfile] = useState(user?.settings.examProfile ?? 'SSC_C')
-  const [category, setCategory] = useState<Category>(user?.settings.category ?? 'general')
   const [reporting, setReporting] = useState(false)
   const [showStart, setShowStart] = useState(false)
+  const [examMode, setExamMode] = useStoredFlag(EXAM_MODE_KEY, false)
   const [tab, setTab] = useState<'start' | 'transcript'>('start')
   const setsQ = useQuery({ queryKey: ['sets'], queryFn: () => api<{ items: DictationSet[] }>('/sets').then((r) => r.items) })
   const transcriptQ = useQuery({
@@ -91,7 +75,7 @@ function DictationView({ id, showToggle, railOpen, onToggleRail }: { id: string;
 
   const start = useMutation({
     mutationFn: (listenedWpm: number | undefined) =>
-      api<{ attempt: Attempt }>(`/dictations/${id}/attempts`, { method: 'POST', body: { examProfile: profile, category, listenedWpm } }),
+      api<{ attempt: Attempt }>(`/dictations/${id}/attempts`, { method: 'POST', body: { examProfile: profile, listenedWpm } }),
     onSuccess: (r) => {
       // The draft now exists and the exercise counts as seen: refresh both so coming back shows "Resume typing".
       void qc.invalidateQueries({ queryKey: ['attempts'] })
@@ -184,26 +168,21 @@ function DictationView({ id, showToggle, railOpen, onToggleRail }: { id: string;
                   {(profilesQ.data ?? []).map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
                 </select>
               </div>
-              <div className="field hide">
-                <span className="label row" style={{ gap: 6 }}>
-                  Category
-                  <InfoTip label="What the category means">
-                    <b>It only changes the pass mark.</b> {chosenProfile
-                      ? <>For {chosenProfile.name}, general (unreserved) candidates may make up to {chosenProfile.limits.general}% mistakes and reserved-category candidates up to {chosenProfile.limits.reserved}%.</>
-                      : 'General (unreserved) candidates get a stricter mistake limit than reserved-category candidates.'} Pick the one that applies to you; you can change it any time.
-                  </InfoTip>
-                </span>
-                <div className="segmented" role="group" aria-label="Category">
-                  <button aria-pressed={category === 'general'} onClick={() => setCategory('general')} disabled={hasDraft}>General</button>
-                  <button aria-pressed={category === 'reserved'} onClick={() => setCategory('reserved')} disabled={hasDraft}>Reserved</button>
-                </div>
-              </div>
               {chosenProfile && !hasDraft && (
                 <div className="muted small hide">
-                  {chosenProfile.durationMin} minutes to transcribe · pass at {chosenProfile.limits[category]}% error or less
-                  {!chosenProfile.verifiedAgainstNotice && ' (limit not yet verified against the latest SSC notice)'}
+                  {chosenProfile.durationMin} minutes to transcribe · about {chosenProfile.words} words at {chosenProfile.wpm} wpm
+                  {!chosenProfile.verifiedAgainstNotice && ' (not yet checked against the latest SSC notice)'}
                 </div>
               )}
+              <div className="row" style={{ gap: 8 }}>
+                <label className="cmp-switch">
+                  <input type="checkbox" checked={examMode} onChange={(e) => setExamMode(e.target.checked)} />
+                  <span>Exam mode</span>
+                </label>
+                <InfoTip label="About exam mode">
+                  <b>Practise the way the real test feels.</b> You read a short list of instructions first, a soft exam-hall murmur plays while you type (you can mute it), the typing box hides its scrollbar and pasting is turned off. Your result is checked exactly the same way.
+                </InfoTip>
+              </div>
               {hasDraft && <div className="alert alert-info">You have an unfinished attempt. Resuming keeps your timer and text.</div>}
               {start.error && <div className="alert alert-error">{errorMessage(start.error)}</div>}
             </div>
@@ -254,7 +233,6 @@ function DictationView({ id, showToggle, railOpen, onToggleRail }: { id: string;
                   <span className="muted small">{formatDate(a.submittedAt)}</span>
                   <span className="attempt-pct">{formatPct(a.errorPct)}</span>
                   <span className="attempt-foot">
-                    {a.passed === null ? <span className="badge badge-muted">Marked</span> : a.passed ? <span className="badge badge-ok">Passed</span> : <span className="badge badge-half">Over limit</span>}
                     <span className="attempt-view">View →</span>
                   </span>
                 </Link>
@@ -268,6 +246,7 @@ function DictationView({ id, showToggle, railOpen, onToggleRail }: { id: string;
       {showStart && (
         <StartInfoModal
           isRetake={hasStarted}
+          examMode={examMode}
           durationMin={chosenProfile?.durationMin}
           busy={start.isPending}
           error={start.error ? errorMessage(start.error) : null}

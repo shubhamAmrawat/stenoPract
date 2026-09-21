@@ -53,6 +53,7 @@ export function AppShell() {
             <NavLink to="/" end>Home</NavLink>
             <NavLink to="/dashboard">Dashboard</NavLink>
             <NavLink to="/history">History</NavLink>
+            <NavLink to="/mistakes">My mistakes</NavLink>
           </nav>
           <div className="menu" ref={menuRef}>
             <button className="avatar-btn" onClick={() => setOpen((o) => !o)} aria-label="Account menu" aria-expanded={open} aria-haspopup="menu">

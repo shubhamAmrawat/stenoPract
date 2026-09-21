@@ -15,6 +15,7 @@ import {
 export * from './types.js';
 export { buildLexicon, DEFAULT_LEXICON_INPUT, type Lexicon, type LexiconInput } from './lexicon.js';
 export { countWords } from './tokenize.js';
+export { GROUP_OF_KIND, MISTAKE_GROUPS, kindsInGroup, type MistakeGroup } from './groups.js';
 
 export interface EvaluateOptions {
   rules?: Partial<RuleSet>;

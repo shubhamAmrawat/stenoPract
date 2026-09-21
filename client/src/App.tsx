@@ -15,6 +15,7 @@ import { DictationPage } from './pages/DictationPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
+import { MyMistakesPage } from './pages/MyMistakesPage'
 import { ResourcesPage } from './pages/ResourcesPage'
 import { SetPage } from './pages/SetPage'
 import { ProfilePage } from './pages/ProfilePage'
@@ -58,6 +59,7 @@ export default function App() {
             <Route path="/attempts/:id" element={<AnalysisPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/history" element={<HistoryPage />} />
+            <Route path="/mistakes" element={<MyMistakesPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             {/* The exam settings moved into the profile page; keep old links and bookmarks working. */}
             <Route path="/settings" element={<Navigate to="/profile" replace />} />

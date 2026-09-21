@@ -209,15 +209,21 @@ describe('reports', () => {
 });
 
 describe('grading configuration', () => {
-  it('editing exam limits bumps rulesVersion and changes the verdict for new attempts', async () => {
+  it('changing the comma rule bumps rulesVersion; attempts carry raw statistics and no verdict', async () => {
     const { dictation } = await createDictation();
     const { agent } = await admin();
     const before = (await agent.get('/api/v1/admin/exam-profiles')).body.items.find((p: { code: string }) => p.code === 'SSC_C');
-    expect(before).toMatchObject({ rulesVersion: 1, verifiedAgainstNotice: true, limits: { general: 5, reserved: 7 } });
+    expect(before).toMatchObject({ rulesVersion: 1, verifiedAgainstNotice: true, rules: { commas: 'ignore' } });
+    expect(before.limits).toBeUndefined();
 
-    const put = await agent.put('/api/v1/admin/exam-profiles/ssc_c').send({ ...before, limits: { general: 2, reserved: 3 }, verifiedAgainstNotice: false });
+    // Older admin pages still send limits: accepted, ignored, and not a grading change.
+    const legacy = await agent.put('/api/v1/admin/exam-profiles/ssc_c').send({ ...before, limits: { general: 2, reserved: 3 } });
+    expect(legacy.status).toBe(200);
+    expect(legacy.body.profile.rulesVersion).toBe(1);
+
+    const put = await agent.put('/api/v1/admin/exam-profiles/ssc_c').send({ ...before, rules: { commas: 'half' }, verifiedAgainstNotice: false });
     expect(put.status).toBe(200);
-    expect(put.body.profile).toMatchObject({ rulesVersion: 2, verifiedAgainstNotice: false, limits: { general: 2, reserved: 3 } });
+    expect(put.body.profile).toMatchObject({ rulesVersion: 2, verifiedAgainstNotice: false, rules: { commas: 'half' } });
 
     // An unchanged re-save does not bump the version.
     const same = await agent.put('/api/v1/admin/exam-profiles/SSC_C').send({ ...put.body.profile });
@@ -225,13 +231,15 @@ describe('grading configuration', () => {
 
     const a = (await agent.post(`/api/v1/dictations/${dictation._id}/attempts`).send({})).body.attempt;
     const r = await agent.post(`/api/v1/attempts/${a.id}/submit`).send({ typedText: SAMPLE_TEXT.replace('now.', 'now').replace('Kindly', 'Kindley').replace('House', 'Hous') });
-    expect(r.body.attempt.result).toMatchObject({ limitPct: 2, passed: false });
+    expect(r.body.attempt.result.errorPct).toBeGreaterThan(0);
+    expect(r.body.attempt.result).not.toHaveProperty('limitPct');
+    expect(r.body.attempt.result).not.toHaveProperty('passed');
   });
 
   it('a new profile can be created', async () => {
     const { agent } = await admin();
     const res = await agent.put('/api/v1/admin/exam-profiles/hc_steno').send({
-      name: 'High Court', wpm: 120, durationMin: 30, words: 1200, limits: { general: 4, reserved: 4 },
+      name: 'High Court', wpm: 120, durationMin: 30, words: 1200,
     });
     expect(res.status).toBe(200);
     expect(res.body.profile).toMatchObject({ code: 'HC_STENO', rulesVersion: 1, active: true });

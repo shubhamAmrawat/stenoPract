@@ -1,9 +1,11 @@
 import type { DiffOp } from '../lib/types'
-import { KINDS } from '../lib/mistakes'
+import { GROUP_OF_KIND, KINDS, type MistakeGroup } from '../lib/mistakes'
 
 interface Props {
   ops: DiffOp[]
   onPick?: (index: number, op: DiffOp) => void
+  /** Only mark this family of mistakes; everything else reads as plain text. */
+  only?: MistakeGroup | null
 }
 
 function describe(op: DiffOp): string {
@@ -16,11 +18,16 @@ function describe(op: DiffOp): string {
   }
 }
 
-export function DiffView({ ops, onPick }: Props) {
+export function DiffView({ ops, onPick, only = null }: Props) {
   return (
-    <p className="diff">
+    <p className={`diff ${only ? 'is-filtered' : ''}`}>
       {ops.map((op, i) => {
         const glue = (op.m ?? op.a ?? '').endsWith('-') ? '' : ' '
+        if (only && !(op.k ?? []).some((k) => GROUP_OF_KIND[k] === only)) {
+          // Not the chosen kind: show the dictated word as ordinary text (an extra word is not part of the dictation, so it is left out).
+          if (op.t === 'i') return null
+          return <span key={i}><span className="tok-dim">{op.m}</span>{glue}</span>
+        }
         const pick = onPick ? () => onPick(i, op) : undefined
         const btn = (cls: string, text: string) => (
           <button key="w" type="button" className={`tok tok-btn ${cls}`} title={describe(op)} onClick={pick}>{text}</button>

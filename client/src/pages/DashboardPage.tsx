@@ -11,7 +11,6 @@ interface Summary {
   dictationsAttempted: number
   avgErrorPct: number | null
   bestErrorPct: number | null
-  passRatePct: number | null
   last7Days: { attempts: number; avgErrorPct: number | null }
   streakDays: number
 }
@@ -78,7 +77,6 @@ export function DashboardPage() {
     ['Attempts', String(s.attempts), `${s.dictationsAttempted} different dictations`],
     ['Average error', formatPct(s.avgErrorPct), 'across all attempts'],
     ['Best error', formatPct(s.bestErrorPct)],
-    ['Pass rate', s.passRatePct === null ? '—' : formatPct(s.passRatePct), 'within the exam limit'],
     ['Streak', `${s.streakDays} day${s.streakDays === 1 ? '' : 's'}`, 'practising in a row'],
     ['Last 7 days', String(s.last7Days.attempts), s.last7Days.avgErrorPct === null ? undefined : `${formatPct(s.last7Days.avgErrorPct)} avg error`],
   ]
@@ -108,7 +106,10 @@ export function DashboardPage() {
 
       <div className="listen-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
         <section className="card stack">
-          <h2>What you get wrong (90 days)</h2>
+          <div className="spread">
+            <h2>What you get wrong (90 days)</h2>
+            <Link to="/mistakes" className="small">See every mistake →</Link>
+          </div>
           {mistakesQ.isPending ? <Spinner /> : mistakes.length === 0 ? <p className="muted">No mistakes recorded. Nice.</p> : mistakes.map((m) => {
             const full = m.weight === 1
             return (

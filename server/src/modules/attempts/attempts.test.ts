@@ -18,7 +18,8 @@ describe('starting an attempt', () => {
     const { agent, id } = await setup();
     const first = await agent.post(`/api/v1/dictations/${id}/attempts`).send({});
     expect(first.status).toBe(201);
-    expect(first.body.attempt).toMatchObject({ status: 'draft', examProfile: 'SSC_C', category: 'general', durationSec: 2400 });
+    expect(first.body.attempt).toMatchObject({ status: 'draft', examProfile: 'SSC_C', durationSec: 2400 });
+    expect(first.body.attempt).not.toHaveProperty('category');
     expect(first.body.attempt.masterText).toBeUndefined();
 
     const again = await agent.post(`/api/v1/dictations/${id}/attempts`).send({});
@@ -39,10 +40,10 @@ describe('starting an attempt', () => {
     expect(await Attempt.countDocuments()).toBe(1);
   });
 
-  it('uses the chosen exam profile and category', async () => {
+  it('uses the chosen exam profile', async () => {
     const { agent, id } = await setup();
-    const res = await agent.post(`/api/v1/dictations/${id}/attempts`).send({ examProfile: 'ssc_d', category: 'reserved' });
-    expect(res.body.attempt).toMatchObject({ examProfile: 'SSC_D', category: 'reserved', durationSec: 3000 });
+    const res = await agent.post(`/api/v1/dictations/${id}/attempts`).send({ examProfile: 'ssc_d' });
+    expect(res.body.attempt).toMatchObject({ examProfile: 'SSC_D', durationSec: 3000 });
   });
 
   it('refuses dictations that are not ready, unpublished or unknown', async () => {
@@ -75,7 +76,7 @@ describe('draft autosave', () => {
 });
 
 describe('submit & evaluate', () => {
-  it('a perfect attempt scores 0% and passes; transcript is revealed only after submit', async () => {
+  it('a perfect attempt scores 0%; transcript is revealed only after submit', async () => {
     const { agent, id } = await setup();
     const { attempt } = (await agent.post(`/api/v1/dictations/${id}/attempts`).send({})).body;
 
@@ -85,20 +86,23 @@ describe('submit & evaluate', () => {
     const res = await agent.post(`/api/v1/attempts/${attempt.id}/submit`).send({ typedText: SAMPLE_TEXT });
     expect(res.status).toBe(200);
     expect(res.body.attempt.status).toBe('submitted');
-    expect(res.body.attempt.result).toMatchObject({ full: 0, half: 0, errorPct: 0, passed: true, limitPct: 5, accuracyPct: 100 });
+    expect(res.body.attempt.result).toMatchObject({ full: 0, half: 0, errorPct: 0, accuracyPct: 100 });
+    expect(res.body.attempt.result).not.toHaveProperty('passed');
+    expect(res.body.attempt.result).not.toHaveProperty('limitPct');
     expect(res.body.attempt.masterText).toBe(SAMPLE_TEXT);
   });
 
-  it('scores mistakes, stores diff + mistakes, and applies the exam limit for the category', async () => {
+  it('scores mistakes, stores diff + mistakes, with no pass/fail verdict', async () => {
     const { agent, id } = await setup();
     // 25 master words; typed text has 1 omission, 1 misspelling, 1 missing full stop.
     const typed = SAMPLE_TEXT.replace('rise ', '').replace('Government', 'Goverment').replace('now.', 'now');
-    const { attempt } = (await agent.post(`/api/v1/dictations/${id}/attempts`).send({ category: 'reserved' })).body;
+    const { attempt } = (await agent.post(`/api/v1/dictations/${id}/attempts`).send({})).body;
     const res = await agent.post(`/api/v1/attempts/${attempt.id}/submit`).send({ typedText: typed });
     const r = res.body.attempt.result;
     expect(r.full).toBe(1);
     expect(r.half).toBe(2);
-    expect(r.limitPct).toBe(7); // reserved limit for SSC Grade C
+    expect(r.limitPct).toBeUndefined();
+    expect(r.passed).toBeUndefined();
     expect(r.errorPct).toBeCloseTo(((1 + 1) / 24) * 100, 1);
     expect(r.breakdown).toEqual({ omission: 1, spelling: 1, full_stop: 1 });
     expect(r.diff.length).toBeGreaterThan(20);
@@ -137,11 +141,11 @@ describe('submit & evaluate', () => {
     expect(res.body.attempt.result.errorPct).toBe(0);
   });
 
-  it('an empty submission is 100% error and fails', async () => {
+  it('an empty submission is 100% error', async () => {
     const { agent, id } = await setup();
     const { attempt } = (await agent.post(`/api/v1/dictations/${id}/attempts`).send({})).body;
     const res = await agent.post(`/api/v1/attempts/${attempt.id}/submit`).send({ typedText: '' });
-    expect(res.body.attempt.result).toMatchObject({ errorPct: 100, passed: false });
+    expect(res.body.attempt.result).toMatchObject({ errorPct: 100, accuracyPct: 0 });
   });
 
   it('after submitting, the draft is closed and a new attempt can begin', async () => {

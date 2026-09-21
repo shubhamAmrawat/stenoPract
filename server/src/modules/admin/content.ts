@@ -5,7 +5,7 @@ import { countWords } from '../../evaluator/index.js';
 import { ApiError } from '../../middleware/errors.js';
 import { idParam, objectId, parse } from '../../middleware/validate.js';
 import { Attempt, Dictation, DictationSet, DictationText, MasterWordStats, Report } from '../../models/index.js';
-import { evaluateAgainstMaster } from '../../services/attempts.js';
+import { reevaluateAttempt } from '../../services/attempts.js';
 import { importDictations, parseVideoLinks } from '../../services/contentImport.js';
 import { extractPlaylistId, fetchPlaylistVideos, MAX_WPM, MIN_WPM, parseVideoTitle } from '../../services/youtube.js';
 
@@ -404,26 +404,6 @@ adminContentRouter.get('/dictations/:id/suspect-words', async (req, res) => {
 
 // ---------- re-evaluation ----------
 
-async function reevaluateOne(attemptId: unknown, targetVersion: number): Promise<{ id: string; before: number | null; after: number }> {
-  const attempt = await Attempt.findById(attemptId);
-  if (!attempt || attempt.status !== 'submitted') throw ApiError.notFound('Submitted attempt not found');
-  const before = attempt.result?.errorPct ?? null;
-  const { result, rulesVersion } = await evaluateAgainstMaster({
-    textVersion: targetVersion,
-    dictationId: attempt.dictationId,
-    examProfile: attempt.examProfile,
-    category: attempt.category,
-    typedText: attempt.typedText ?? '',
-  });
-  const { mistakes, ...summary } = result;
-  attempt.textVersion = targetVersion;
-  attempt.set('result', summary);
-  attempt.set('mistakes', mistakes);
-  attempt.evaluationHistory.push({ at: new Date(), textVersion: targetVersion, rulesVersion, full: result.full, half: result.half, errorPct: result.errorPct });
-  await attempt.save();
-  return { id: String(attempt._id), before, after: result.errorPct };
-}
-
 // Re-grade one attempt (e.g. after fixing a transcript). Running word statistics are NOT re-counted.
 adminContentRouter.post('/attempts/:id/reevaluate', async (req, res) => {
   const { id } = parse(idParam, req.params);
@@ -432,7 +412,7 @@ adminContentRouter.post('/attempts/:id/reevaluate', async (req, res) => {
   if (!attempt) throw ApiError.notFound('Attempt not found');
   const version = body.textVersion ?? (await Dictation.findById(attempt.dictationId, { activeTextVersion: 1 }).lean())?.activeTextVersion;
   if (version == null) throw ApiError.badRequest('This dictation has no verified transcript');
-  res.json({ ...(await reevaluateOne(id, version)), textVersion: version, statsRecounted: false });
+  res.json({ ...(await reevaluateAttempt(id, version)), textVersion: version, statsRecounted: false });
 });
 
 // Re-grade a batch of attempts still on an older version. Call repeatedly until `remaining` is 0.
@@ -446,7 +426,7 @@ adminContentRouter.post('/dictations/:id/reevaluate', async (req, res) => {
   const filter = { dictationId: new Types.ObjectId(id), status: 'submitted' as const, textVersion: { $ne: dictation.activeTextVersion } };
   const batch = await Attempt.find(filter, { _id: 1 }).limit(body.limit).lean();
   const changes = [];
-  for (const a of batch) changes.push(await reevaluateOne(a._id, dictation.activeTextVersion));
+  for (const a of batch) changes.push(await reevaluateAttempt(String(a._id), dictation.activeTextVersion));
   const remaining = await Attempt.countDocuments(filter);
   res.json({ textVersion: dictation.activeTextVersion, processed: changes.length, remaining, changes, statsRecounted: false });
 });

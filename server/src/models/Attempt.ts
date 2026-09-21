@@ -29,6 +29,7 @@ const resultSchema = new Schema(
     masterWords: Number,
     attemptWords: Number,
     errorPct: Number,
+    /** Legacy: older attempts stored a pass limit and verdict. New attempts are raw statistics only. */
     limitPct: Number,
     passed: Boolean,
     breakdown: { type: Schema.Types.Mixed },
@@ -55,7 +56,8 @@ const attemptSchema = new Schema(
     dictationId: { type: Schema.Types.ObjectId, ref: 'Dictation', required: true },
     textVersion: { type: Number, required: true },
     examProfile: { type: String, required: true },
-    category: { type: String, enum: ['general', 'reserved'], required: true },
+    /** Legacy: no longer chosen or used. Older attempts still carry it. */
+    category: { type: String, enum: ['general', 'reserved'] },
     status: { type: String, enum: ['draft', 'submitted'], default: 'draft' },
     typedText: { type: String, default: '' },
     /** Speed the student listened at (base wpm x playback rate), if the client reported it. */
@@ -76,6 +78,8 @@ const attemptSchema = new Schema(
 
 attemptSchema.index({ userId: 1, submittedAt: -1 });
 attemptSchema.index({ userId: 1, dictationId: 1, submittedAt: -1 });
+// "Where you stand": every submitted attempt on one transcript version.
+attemptSchema.index({ dictationId: 1, textVersion: 1, status: 1 });
 // At most one open draft per student per dictation.
 attemptSchema.index(
   { userId: 1, dictationId: 1 },

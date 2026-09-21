@@ -12,6 +12,8 @@ const icon = (children: ReactNode) => (
 interface Props {
   /** True when the student has been here before (retake), so the wording fits. */
   isRetake: boolean
+  /** Exam mode: show the exam instructions and ask for a tick before starting. */
+  examMode?: boolean
   durationMin?: number
   /** True while the attempt is being created, after the countdown has finished. */
   busy: boolean
@@ -25,10 +27,11 @@ interface Props {
  * Shown between "Transcribe now" / "Retake again" and the typing screen.
  * Step 1 explains the typing screen; step 2 is a 5 second countdown. The attempt (and so its timer) is only created when the countdown ends.
  */
-export function StartInfoModal({ isRetake, durationMin, busy, error, onStart, onCancel }: Props) {
+export function StartInfoModal({ isRetake, examMode = false, durationMin, busy, error, onStart, onCancel }: Props) {
   const uid = useId()
   const [step, setStep] = useState<'info' | 'countdown'>('info')
   const [count, setCount] = useState(COUNTDOWN_SECONDS)
+  const [agreed, setAgreed] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
   const firedRef = useRef(false)
 
@@ -46,7 +49,7 @@ export function StartInfoModal({ isRetake, durationMin, busy, error, onStart, on
 
   // Focus the main button of the step that is on screen (Okay, start / Cancel).
   useEffect(() => {
-    dialogRef.current?.querySelector<HTMLButtonElement>('button[data-autofocus]')?.focus()
+    dialogRef.current?.querySelector<HTMLElement>('[data-autofocus]:not([disabled])')?.focus()
   }, [step])
 
   // Countdown: one number per second, then hand over to the parent at zero.
@@ -78,7 +81,7 @@ export function StartInfoModal({ isRetake, durationMin, busy, error, onStart, on
         e.preventDefault()
         onCancel()
       } else if (e.key === 'Tab') {
-        const items = Array.from(dialogRef.current?.querySelectorAll<HTMLButtonElement>('button:not([disabled])') ?? [])
+        const items = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled])') ?? [])
         if (items.length === 0) return
         const first = items[0]
         const last = items[items.length - 1]
@@ -96,8 +99,35 @@ export function StartInfoModal({ isRetake, durationMin, busy, error, onStart, on
     setStep('countdown')
   }
 
-  const title = isRetake ? 'Ready to retake?' : 'Before you start'
-  const points: { icon: ReactNode; title: string; text: string }[] = [
+  const title = examMode ? 'Exam instructions' : isRetake ? 'Ready to retake?' : 'Before you start'
+  const examPoints: { icon: ReactNode; title: string; text: string }[] = [
+    {
+      icon: icon(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>),
+      title: 'Time',
+      text: `You have ${durationMin ? `${durationMin} minutes` : 'the full time'} to type the dictation. The clock counts down at the top of the screen and your answer is submitted automatically at 00:00.`,
+    },
+    {
+      icon: icon(<><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /><path d="M9 13h6" /><path d="M9 17h4" /></>),
+      title: 'Typing',
+      text: 'Type the dictation exactly as you heard it. Pasting is turned off, spell-check and auto-correct are off, and the text box hides its scrollbar. Your text is still saved automatically.',
+    },
+    {
+      icon: icon(<><path d="M11 5L6 9H2v6h4l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7" /></>),
+      title: 'Exam-hall sound',
+      text: 'A soft murmur plays while you type, to get you used to a busy hall. Use the speaker button at the top of the typing screen to mute it whenever you like.',
+    },
+    {
+      icon: icon(<><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4z" /></>),
+      title: 'Submitting',
+      text: 'Press Submit and confirm when you are done. You cannot edit after submitting, and the result shows every mistake.',
+    },
+    {
+      icon: icon(<><circle cx="12" cy="12" r="9" /><path d="M12 8v5" /><path d="M12 16.5v.01" /></>),
+      title: 'Practice only',
+      text: 'This is StenoSeekho\'s own practice mode. It is not an official test and is not connected to SSC or any other exam body.',
+    },
+  ]
+  const points: { icon: ReactNode; title: string; text: string }[] = examMode ? examPoints : [
     {
       icon: icon(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>),
       title: 'Timer',
@@ -136,7 +166,7 @@ export function StartInfoModal({ isRetake, durationMin, busy, error, onStart, on
             </div>
 
             <div className="start-scroll">
-              <p className="muted" style={{ margin: 0 }}>Here is how the typing screen works:</p>
+              <p className="muted" style={{ margin: 0 }}>{examMode ? 'Please read these before you begin:' : 'Here is how the typing screen works:'}</p>
               <ul className="start-list">
                 {points.map((p) => (
                   <li key={p.title} className="start-item">
@@ -151,11 +181,17 @@ export function StartInfoModal({ isRetake, durationMin, busy, error, onStart, on
             </div>
 
             <div className="start-foot">
+              {examMode && (
+                <label className="cmp-switch start-agree">
+                  <input data-autofocus type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+                  <span>I have read the instructions</span>
+                </label>
+              )}
               <div className="tip">After you press <b>Okay, start</b>, a 5-second countdown begins. Your {timerText} starts when it reaches zero.</div>
               {error && <div className="alert alert-error" role="alert">{error}</div>}
               <div className="confirm-actions">
                 <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>
-                <button data-autofocus className="btn btn-primary" onClick={begin}>Okay, start</button>
+                <button data-autofocus className="btn btn-primary" onClick={begin} disabled={examMode && !agreed}>Okay, start</button>
               </div>
             </div>
           </>

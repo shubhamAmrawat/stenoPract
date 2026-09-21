@@ -39,7 +39,6 @@ export function HistoryPage() {
                 <th>Error</th>
                 <th>Full / Half</th>
                 <th>Time</th>
-                <th>Result</th>
                 <th />
               </tr>
             </thead>
@@ -48,15 +47,12 @@ export function HistoryPage() {
                 <tr key={a.id}>
                   <td>
                     <b>{a.dictationTitle ?? 'Dictation'}</b>
-                    <div className="muted small">{a.examProfile.replace('_', ' ')} · {a.category}</div>
+                    <div className="muted small">{a.examProfile.replace('_', ' ')}</div>
                   </td>
                   <td>{formatDate(a.submittedAt)}</td>
                   <td><b>{formatPct(a.errorPct)}</b></td>
                   <td>{a.full ?? '—'} / {a.half ?? '—'}</td>
                   <td>{formatDuration(a.timeTakenSec)}</td>
-                  <td>
-                    {a.passed === null ? <span className="badge badge-muted">—</span> : a.passed ? <span className="badge badge-ok">Passed</span> : <span className="badge badge-full">Above limit</span>}
-                  </td>
                   <td><Link to={`/attempts/${a.id}`}>Analysis →</Link></td>
                 </tr>
               ))}

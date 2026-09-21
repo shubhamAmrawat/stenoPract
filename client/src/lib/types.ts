@@ -1,5 +1,4 @@
 export type Role = 'user' | 'admin'
-export type Category = 'general' | 'reserved'
 
 export interface User {
   id: string
@@ -7,7 +6,7 @@ export interface User {
   name: string
   picture: string | null
   role: Role
-  settings: { examProfile: string; category: Category }
+  settings: { examProfile: string }
   phone: string | null
   gender: 'female' | 'male' | 'other' | 'prefer-not-to-say' | null
   bio: string | null
@@ -27,7 +26,6 @@ export interface ExamProfile {
   wpm: number
   durationMin: number
   words: number
-  limits: { general: number; reserved: number }
   verifiedAgainstNotice: boolean
 }
 
@@ -115,8 +113,6 @@ export interface AttemptResult {
   masterWords: number
   attemptWords: number
   errorPct: number
-  limitPct: number | null
-  passed: boolean | null
   accuracyPct: number | null
   breakdown: Partial<Record<MistakeKind, number>>
   diff: DiffOp[]
@@ -127,7 +123,6 @@ export interface Attempt {
   dictationId: string
   textVersion: number
   examProfile: string
-  category: Category
   status: 'draft' | 'submitted'
   typedText: string
   listenedWpm: number | null
@@ -150,7 +145,6 @@ export interface AttemptSummary {
   dictationTitle: string | null
   exerciseNo: number | null
   examProfile: string
-  category: Category
   status: 'draft' | 'submitted'
   startedAt: string
   submittedAt: string | null
@@ -158,8 +152,6 @@ export interface AttemptSummary {
   full: number | null
   half: number | null
   errorPct: number | null
-  limitPct: number | null
-  passed: boolean | null
 }
 
 export interface Paged<T> {
