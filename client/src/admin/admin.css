@@ -84,3 +84,33 @@
 /* Resources: group chips */
 .chip-new { border-style: dashed; color: var(--primary); }
 .chip .chip-count { opacity: 0.7; font-weight: 500; margin-left: 4px; }
+
+/* ---- Add transcripts from scans ---- */
+.scan-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; padding: 34px 20px; border: 2px dashed var(--border); border-radius: 16px; background: var(--surface); cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+.scan-drop:hover, .scan-drop-on { border-color: var(--primary); background: var(--info-bg); }
+.scan-drop input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.scan-drop:focus-within { outline: 3px solid color-mix(in srgb, var(--primary) 35%, transparent); outline-offset: 2px; }
+
+.scan-review { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column; }
+.scan-review-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.scan-review-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; padding: 16px 20px; }
+.scan-page, .scan-side { min-height: 0; overflow-y: auto; }
+.scan-img { border: 1px solid var(--border); border-radius: 12px; background: #fff; overflow: auto; max-height: calc(100vh - 150px); }
+.scan-img img { display: block; width: 100%; height: auto; }
+.scan-img-zoom img { width: 230%; max-width: none; }
+.scan-checks { display: grid; gap: 4px; }
+.scan-check { display: flex; align-items: center; gap: 8px; font-size: 0.92rem; text-align: left; }
+.scan-check-btn { background: none; border: 0; padding: 0; cursor: pointer; color: inherit; font: inherit; }
+.scan-tick { width: 20px; height: 20px; flex: none; border-radius: 50%; display: inline-grid; place-items: center; font-size: 0.75rem; font-weight: 800; }
+.scan-tick-ok { background: var(--ok-bg); color: var(--ok-ink); }
+.scan-tick-warn { background: var(--half-bg); color: var(--half-ink); }
+.scan-flags { display: grid; gap: 6px; max-height: 210px; overflow-y: auto; }
+.scan-flag { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; cursor: pointer; font: inherit; color: inherit; }
+.scan-flag:hover { background: var(--tint); }
+.textarea.scan-text { min-height: 42vh; font-size: 0.98rem; line-height: 1.7; }
+@media (max-width: 900px) {
+  .scan-review-body { grid-template-columns: 1fr; overflow-y: auto; }
+  .scan-page, .scan-side { overflow: visible; }
+  .scan-img { max-height: 60vh; }
+}
+.scan-img-label { padding: 6px 10px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; }

@@ -53,6 +53,17 @@ export const env = {
   /** Local testing helper: POST /auth/dev-login. Ignored in production. */
   devLogin: !isProd && process.env.AUTH_DEV_LOGIN === 'true',
 
+  /** Only needed for "Add transcripts from scans" on the admin Content page (reads scanned book pages with Claude). */
+  anthropic: {
+    apiKey: process.env.ANTHROPIC_API_KEY ?? '',
+    /** Override only for tests or a proxy. No trailing slash. */
+    baseUrl: (process.env.ANTHROPIC_BASE_URL ?? 'https://api.anthropic.com').replace(/\/+$/, ''),
+    /** The model that reads the pages. Change it here when a better one is released. */
+    scanModel: process.env.SCAN_MODEL ?? 'claude-sonnet-5',
+    /** How many independent readings of each page must agree (1 or 2). Two catches silent misreads. */
+    scanPasses: process.env.SCAN_PASSES === '1' ? 1 : 2,
+  },
+
   /** Only needed for the admin playlist import. */
   youtubeApiKey: process.env.YOUTUBE_API_KEY ?? '',
   /** Only needed for "Import from a Drive folder" on the admin Resources page. Falls back to the YouTube key if that key also has the Drive API enabled. */

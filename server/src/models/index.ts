@@ -16,3 +16,4 @@ export { Resource } from './Resource.js';
 export { ResourceGroup } from './ResourceGroup.js';
 export { Invite } from './Invite.js';
 export { Setting } from './Setting.js';
+export { TranscriptScan } from './TranscriptScan.js';
