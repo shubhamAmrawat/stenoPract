@@ -25,6 +25,9 @@ interface Options {
  */
 const API_BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').trim().replace(/\/+$/, '')
 
+/** Full URL of an API path, for things a browser loads itself (an <img>, a download link). */
+export const apiUrl = (path: string) => `${API_BASE}/api/v1${path}`
+
 /** Thin fetch wrapper: cookies included, JSON in/out, errors as ApiError. */
 export async function api<T>(path: string, { method = 'GET', body, signal }: Options = {}): Promise<T> {
   let res: Response

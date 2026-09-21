@@ -31,3 +31,5 @@ export const authLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 30, standar
 export const submitLimiter = rateLimit({ windowMs: 60 * 60_000, limit: 40, standardHeaders: 'draft-8', legacyHeaders: false, skip, ...json429 });
 export const reportLimiter = rateLimit({ windowMs: 24 * 60 * 60_000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false, skip, ...json429 });
 export const avatarLimiter = rateLimit({ windowMs: 60 * 60_000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false, skip, ...json429 });
+/** Each uploaded page costs an API call, so cap how many an admin session can send in an hour. */
+export const scanUploadLimiter = rateLimit({ windowMs: 60 * 60_000, limit: 400, standardHeaders: 'draft-8', legacyHeaders: false, skip, ...json429 });

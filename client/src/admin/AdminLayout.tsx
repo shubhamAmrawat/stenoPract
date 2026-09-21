@@ -27,6 +27,7 @@ function pageTitle(path: string): string {
   if (path.startsWith('/admin/access')) return 'Access'
   if (path.startsWith('/admin/config')) return 'Rules and exams'
   if (path.startsWith('/admin/d/')) return 'Exercise editor'
+  if (path.startsWith('/admin/scans/')) return 'Add transcripts'
   return 'Content'
 }
 

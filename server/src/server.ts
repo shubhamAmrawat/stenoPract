@@ -6,6 +6,7 @@ import { logger } from './config/logger.js';
 import { connectDb } from './db/connect.js';
 import { ensureIndexes } from './db/indexes.js';
 import { seedReferenceData } from './db/seed.js';
+import { resumePendingScans } from './services/scan/queue.js';
 
 async function main(): Promise<void> {
   await connectDb();
@@ -20,6 +21,8 @@ async function main(): Promise<void> {
       ttl: 30 * 24 * 60 * 60,
     }),
   });
+
+  await resumePendingScans();
 
   const server = app.listen(env.port, () => {
     logger.info(`Server listening on http://localhost:${env.port} (${env.nodeEnv})`);

@@ -6,6 +6,7 @@ import { ContentPage } from './admin/ContentPage'
 import { DictationEditorPage } from './admin/DictationEditorPage'
 import { ReportsPage } from './admin/ReportsPage'
 import { ResourcesAdminPage } from './admin/ResourcesAdminPage'
+import { ScansPage } from './admin/ScansPage'
 import { RequireAdmin, RequireAuth, StudentArea } from './auth/guards'
 import { AppShell } from './components/AppShell'
 import { AnalysisPage } from './pages/AnalysisPage'
@@ -38,6 +39,7 @@ export default function App() {
           <Route element={<AdminLayout />}>
             <Route index element={<ContentPage />} />
             <Route path="d/:id" element={<DictationEditorPage />} />
+            <Route path="scans/:setId" element={<ScansPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="resources" element={<ResourcesAdminPage />} />
             <Route path="access" element={<AccessPage />} />

@@ -88,7 +88,8 @@ function SetPanel({ set, onOpen }: { set: AdminSet; onOpen: (m: 'edit' | 'links'
             {set.published ? 'Hide set' : 'Show set to students'}
           </button>
           <button className="btn btn-ghost btn-sm" onClick={() => onOpen('edit')}>Edit title</button>
-          <button className="btn btn-primary btn-sm" onClick={() => onOpen('links')}>Paste video links</button>
+          <Link className="btn btn-primary btn-sm" to={`/admin/scans/${set.id}`}>Add transcripts from scans</Link>
+          <button className="btn btn-ghost btn-sm" onClick={() => onOpen('links')}>Paste video links</button>
           <button className="btn btn-ghost btn-sm" onClick={() => onOpen('json')}>Import JSON</button>
           <button className="btn btn-ghost btn-sm" onClick={() => onOpen('playlist')}>Import playlist</button>
         </div>
@@ -112,7 +113,7 @@ function SetPanel({ set, onOpen }: { set: AdminSet; onOpen: (m: 'edit' | 'links'
       {togglePublished.error && <div className="alert alert-error">{errorMessage(togglePublished.error)}</div>}
       {items.some((d) => d.activeTextVersion == null) && (
         <div className="alert alert-warn">
-          {(() => { const n = items.filter((d) => d.activeTextVersion == null).length; return n === 1 ? '1 exercise is' : `${n} exercises are` })()} waiting for a transcript. Students cannot see an exercise until its transcript is verified: use “Import JSON”, or open the exercise and paste the text.
+          {(() => { const n = items.filter((d) => d.activeTextVersion == null).length; return n === 1 ? '1 exercise is' : `${n} exercises are` })()} waiting for a transcript. Students cannot see an exercise until its transcript is verified: use “Add transcripts from scans”, or open the exercise and paste the text.
         </div>
       )}
 
@@ -121,7 +122,7 @@ function SetPanel({ set, onOpen }: { set: AdminSet; onOpen: (m: 'edit' | 'links'
       ) : dictQ.error ? (
         <ErrorState error={dictQ.error} onRetry={() => void dictQ.refetch()} />
       ) : items.length === 0 ? (
-        <Empty title="No exercises in this set yet">Use “Import playlist” or “Paste video links” to add the videos, then “Import JSON” (or open an exercise) to add transcripts.</Empty>
+        <Empty title="No exercises in this set yet">Use “Import playlist” or “Paste video links” to add the videos, then “Add transcripts from scans” to read them from your PDFs.</Empty>
       ) : (
         <div className="table-wrap">
           <table className="table">
@@ -356,7 +357,7 @@ function PlaylistModal({ set, onClose }: { set: AdminSet; onClose: () => void })
                 <b>{imported} exercise{imported === 1 ? '' : 's'} ready in the table</b> ({exerciseRange(r.exercises)}): {r.created} new, {r.updated} updated
                 {r.usedDefault > 0 ? `, ${r.usedDefault} using the speed you typed` : ''}.
                 <div className="small" style={{ marginTop: 4 }}>
-                  Next: each exercise needs a verified transcript before students can see it. Use “Import JSON” for many at once, or open an exercise and paste its text.
+                  Next: each exercise needs a verified transcript before students can see it. Use “Add transcripts from scans” to read them from your PDFs, or open an exercise and paste its text.
                 </div>
               </div>
             ) : (
