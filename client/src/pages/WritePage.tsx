@@ -113,7 +113,7 @@ function Editor({ attempt }: { attempt: Attempt }) {
             <div style={{ fontWeight: 700 }}>{countWords(text)} words</div>
             <div className={`small ${saveError ? '' : 'muted'}`} style={saveError ? { color: 'var(--full-ink)' } : undefined} aria-live="polite">{status}</div>
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={() => { if (window.confirm('Discard this attempt and start over later?')) discard.mutate() }} disabled={finish.isPending}>Discard</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => { if (window.confirm('Discard this attempt and start over later?')) discard.mutate() }} disabled={finish.isPending}>Retake</button>
           <button className="btn btn-primary" onClick={() => setConfirming(true)} disabled={finish.isPending}>{finish.isPending ? 'Submitting…' : 'Submit'}</button>
         </div>
       </div>
