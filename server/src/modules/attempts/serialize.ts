@@ -40,7 +40,8 @@ export function publicAttempt(a: AttemptLike, opts: { masterText?: string } = {}
     serverNow: new Date(),
     ...(a.status === 'submitted' && a.result
       ? {
-          result: { ...a.result, accuracyPct: errorPct === null ? null : roundTo2(Math.max(0, 100 - errorPct)) },
+          // Mongoose drops an empty object on save, so a perfect attempt (no mistakes) is stored without a breakdown: always send one.
+          result: { ...a.result, breakdown: a.result.breakdown ?? {}, accuracyPct: errorPct === null ? null : roundTo2(Math.max(0, 100 - errorPct)) },
           mistakes: a.mistakes ?? [],
           // The master transcript is only ever revealed after the attempt is submitted.
           masterText: opts.masterText ?? null,

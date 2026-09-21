@@ -316,3 +316,29 @@ button { font: inherit; color: inherit; }
 .confirm-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: #eef0ff; color: var(--primary); }
 .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 @media (max-width: 420px) { .confirm-actions .btn { flex: 1 1 100%; } }
+.confirm-icon.danger { background: var(--full-bg); color: var(--full-ink); }
+.confirm-text { margin-top: 6px; }
+.confirm-text p { margin: 0; }
+.confirm-text p + p { margin-top: 8px; }
+.btn-danger:hover:not([disabled]) { background: color-mix(in srgb, var(--full-bg) 82%, var(--full-ink)); }
+
+/* Start info modal (shown before the typing screen) and its 5 second countdown. */
+.start-modal { width: min(600px, 100%); gap: 14px; overflow: hidden; }
+.start-scroll { display: grid; gap: 14px; overflow-y: auto; min-height: 0; margin: 0 -10px; padding: 0 10px; }
+.start-foot { display: grid; gap: 12px; }
+.start-modal h2 { font-size: 1.3rem; }
+.start-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.start-item { display: flex; gap: 14px; align-items: flex-start; }
+.start-icon { flex: none; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--info-bg); color: var(--info-ink); }
+.start-item h3 { font-size: 0.95rem; margin: 0 0 2px; }
+.start-item p { margin: 0; font-size: 0.9rem; color: var(--muted); line-height: 1.45; }
+.countdown { display: grid; justify-items: center; gap: 16px; text-align: center; padding: 12px 0 4px; }
+.countdown h2 { margin: 0; }
+.countdown-ring { position: relative; width: 148px; height: 148px; display: grid; place-items: center; }
+.countdown-svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.countdown-track, .countdown-arc { fill: none; stroke-width: 8; }
+.countdown-track { stroke: var(--info-bg); }
+.countdown-arc { stroke: var(--primary); stroke-linecap: round; stroke-dashoffset: var(--to); animation: countdown-drain 1s linear forwards; }
+.countdown-num { position: relative; font-family: var(--font-head); font-weight: 800; font-size: 3.6rem; line-height: 1; color: var(--primary); font-variant-numeric: tabular-nums; animation: countdown-pop 0.3s ease-out; }
+@keyframes countdown-drain { from { stroke-dashoffset: var(--from); } to { stroke-dashoffset: var(--to); } }
+@keyframes countdown-pop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }

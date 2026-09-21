@@ -34,7 +34,9 @@ export function AnalysisPage() {
   const accuracy = r.accuracyPct ?? Math.max(0, 100 - r.errorPct)
   const verdictColor = r.passed === false ? 'var(--full-ink)' : 'var(--ok-ink)'
   const ringColor = r.passed === false ? '#e11d48' : '#10b981'
-  const maxCount = Math.max(1, ...Object.values(r.breakdown).map((n) => n ?? 0))
+  // A perfect attempt has no mistakes, so guard against a missing breakdown.
+  const breakdown = r.breakdown ?? {}
+  const maxCount = Math.max(1, ...Object.values(breakdown).map((n) => n ?? 0))
 
   const pickWord = (index: number, op: DiffOp) => {
     const m = a.mistakes?.find((x) => x.pos === index)
@@ -61,13 +63,13 @@ export function AnalysisPage() {
             </div>
           </div>
           <div className="stack">
-            <div className="row">
+            <div className="row ">
               {r.passed === null ? null : r.passed ? (
                 <span className="banner pass">✓ Within the limit</span>
               ) : (
                 <span className="banner fail">Above the limit</span>
               )}
-              {r.limitPct !== null && <span className="muted">Allowed: {formatPct(r.limitPct)} error ({a.category})</span>}
+              {r.limitPct !== null && <span className="muted hide">Allowed: {formatPct(r.limitPct)} error ({a.category})</span>}
             </div>
             <div className="stat-grid">
               <div className="stat"><b>{r.full}</b><span className="muted small">Full mistakes</span></div>
@@ -99,8 +101,8 @@ export function AnalysisPage() {
         {tab === 'mistakes' && (
           <div className="stack-lg">
             <div className="stack">
-              {KIND_ORDER.filter((k) => (r.breakdown[k] ?? 0) > 0).map((k) => {
-                const n = r.breakdown[k] ?? 0
+              {KIND_ORDER.filter((k) => (breakdown[k] ?? 0) > 0).map((k) => {
+                const n = breakdown[k] ?? 0
                 const full = KINDS[k].weight === 1
                 return (
                   <div key={k} className="bar-row" title={KINDS[k].hint}>
