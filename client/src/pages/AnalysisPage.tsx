@@ -63,13 +63,13 @@ export function AnalysisPage() {
             </div>
           </div>
           <div className="stack">
-            <div className="row">
+            <div className="row ">
               {r.passed === null ? null : r.passed ? (
                 <span className="banner pass">✓ Within the limit</span>
               ) : (
                 <span className="banner fail">Above the limit</span>
               )}
-              {r.limitPct !== null && <span className="muted">Allowed: {formatPct(r.limitPct)} error ({a.category})</span>}
+              {r.limitPct !== null && <span className="muted hide">Allowed: {formatPct(r.limitPct)} error ({a.category})</span>}
             </div>
             <div className="stat-grid">
               <div className="stat"><b>{r.full}</b><span className="muted small">Full mistakes</span></div>
